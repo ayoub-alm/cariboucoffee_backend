@@ -1,0 +1,148 @@
+from pydantic import BaseModel, EmailStr
+from typing import List, Optional
+import datetime
+from enum import Enum
+
+class UserRole(str, Enum):
+    ADMIN = "ADMIN"
+    AUDITOR = "AUDITOR"
+    VIEWER = "VIEWER"
+
+# --- User Schemas ---
+class UserBase(BaseModel):
+    email: EmailStr
+    full_name: Optional[str] = None
+    role: UserRole = UserRole.VIEWER
+    coffee_id: Optional[int] = None # Relevant for VIEWERS
+
+class UserCreate(UserBase):
+    password: str
+
+class UserUpdate(BaseModel):
+    email: Optional[EmailStr] = None
+    password: Optional[str] = None
+    full_name: Optional[str] = None
+    role: Optional[UserRole] = None
+    coffee_id: Optional[int] = None
+    is_active: Optional[bool] = None
+
+class UserResponse(UserBase):
+    id: int
+    is_active: bool
+
+    class Config:
+        from_attributes = True
+
+# --- Coffee Schemas ---
+class CoffeeBase(BaseModel):
+    name: str
+    location: str
+
+class CoffeeCreate(CoffeeBase):
+    pass
+
+class CoffeeResponse(CoffeeBase):
+    id: int
+    active: bool
+
+    class Config:
+        from_attributes = True
+
+# --- Question/Category Schemas ---
+class AuditCategoryBase(BaseModel):
+    name: str
+    description: Optional[str] = None
+
+class AuditCategoryCreate(AuditCategoryBase):
+    pass
+
+class AuditCategoryResponse(AuditCategoryBase):
+    id: int
+    
+    class Config:
+        from_attributes = True
+
+class AuditQuestionBase(BaseModel):
+    text: str
+    weight: int = 1
+    category_id: int
+
+class AuditQuestionCreate(AuditQuestionBase):
+    pass
+
+class AuditQuestionResponse(AuditQuestionBase):
+    id: int
+    category: Optional[AuditCategoryResponse] = None
+
+    class Config:
+        from_attributes = True
+
+# --- Audit Schemas ---
+class AuditAnswerBase(BaseModel):
+    question_id: int
+    value: int
+    comment: Optional[str] = None
+
+class AuditAnswerCreate(AuditAnswerBase):
+    pass
+
+class AuditAnswerResponse(AuditAnswerBase):
+    id: int
+    question: Optional[AuditQuestionResponse] = None
+
+    class Config:
+        from_attributes = True
+
+class AuditCreate(BaseModel):
+    coffee_id: int
+    shift: Optional[str] = None
+    staff_present: Optional[str] = None
+    actions_correctives: Optional[str] = None
+    training_needs: Optional[str] = None
+    purchases: Optional[str] = None
+    answers: List[AuditAnswerCreate]
+
+class AuditUpdate(BaseModel):
+    coffee_id: Optional[int] = None
+    score: Optional[float] = None
+    shift: Optional[str] = None
+    staff_present: Optional[str] = None
+    actions_correctives: Optional[str] = None
+    training_needs: Optional[str] = None
+    purchases: Optional[str] = None
+    answers: Optional[List[AuditAnswerCreate]] = None
+
+class AuditResponse(BaseModel):
+    id: int
+    created_at: datetime.datetime
+    score: float
+    shift: Optional[str] = None
+    staff_present: Optional[str] = None
+    actions_correctives: Optional[str] = None
+    training_needs: Optional[str] = None
+    purchases: Optional[str] = None
+    coffee: CoffeeResponse
+    auditor: UserResponse
+    answers: List[AuditAnswerResponse] = []
+
+    class Config:
+        from_attributes = True
+
+# --- KPI Schemas ---
+class KPIData(BaseModel):
+    total_audits: int
+    average_score: float
+    top_performer: Optional[str]
+    recent_trend: List[float] = []
+    compliance_rate: float  # Percentage of audits with score >= 80
+    total_coffee_shops: int
+    audits_this_month: int
+    average_score_this_month: float
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+class TokenPayload(BaseModel):
+    sub: Optional[int] = None
+
