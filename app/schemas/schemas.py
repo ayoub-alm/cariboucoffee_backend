@@ -121,8 +121,8 @@ class AuditResponse(BaseModel):
     actions_correctives: Optional[str] = None
     training_needs: Optional[str] = None
     purchases: Optional[str] = None
-    coffee: CoffeeResponse
-    auditor: UserResponse
+    coffee: Optional[CoffeeResponse] = None
+    auditor: Optional[UserResponse] = None
     answers: List[AuditAnswerResponse] = []
 
     class Config:

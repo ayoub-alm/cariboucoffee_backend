@@ -23,24 +23,29 @@ async def read_audits(
     - Auditor: Own audits
     - Viewer: Audits for their assigned coffee
     """
-    query = select(Audit).options(
-        selectinload(Audit.coffee),
-        selectinload(Audit.auditor),
-        selectinload(Audit.answers).selectinload(AuditAnswer.question).selectinload(AuditQuestion.category)
-    ).offset(skip).limit(limit)
+    try:
+        query = select(Audit).options(
+            selectinload(Audit.coffee),
+            selectinload(Audit.auditor),
+            selectinload(Audit.answers).selectinload(AuditAnswer.question).selectinload(AuditQuestion.category)
+        ).offset(skip).limit(limit)
 
-    if current_user.role == UserRole.ADMIN:
-        pass # No filter
-    elif current_user.role == UserRole.AUDITOR:
-        query = query.where(Audit.auditor_id == current_user.id)
-    elif current_user.role == UserRole.VIEWER:
-        if not current_user.coffee_id:
-            return [] # Viewer with no coffee sees nothing
-        query = query.where(Audit.coffee_id == current_user.coffee_id)
-    
-    result = await db.execute(query)
-    audits = result.scalars().all()
-    return audits
+        if current_user.role == UserRole.ADMIN:
+            pass # No filter
+        elif current_user.role == UserRole.AUDITOR:
+            query = query.where(Audit.auditor_id == current_user.id)
+        elif current_user.role == UserRole.VIEWER:
+            if not current_user.coffee_id:
+                return [] # Viewer with no coffee sees nothing
+            query = query.where(Audit.coffee_id == current_user.coffee_id)
+        
+        result = await db.execute(query)
+        audits = result.scalars().all()
+        return audits
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/", response_model=schemas.AuditResponse)
 async def create_audit(
