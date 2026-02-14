@@ -58,6 +58,8 @@ class AuditCategoryCreate(AuditCategoryBase):
 
 class AuditCategoryResponse(AuditCategoryBase):
     id: int
+    total_score: int = 0
+
     
     class Config:
         from_attributes = True
@@ -66,6 +68,9 @@ class AuditQuestionBase(BaseModel):
     text: str
     weight: int = 1
     category_id: int
+    correct_answer: str = "oui"
+    na_score: int = 0
+
 
 class AuditQuestionCreate(AuditQuestionBase):
     pass
@@ -81,7 +86,9 @@ class AuditQuestionResponse(AuditQuestionBase):
 class AuditAnswerBase(BaseModel):
     question_id: int
     value: int
+    choice: Optional[str] = None
     comment: Optional[str] = None
+
 
 class AuditAnswerCreate(AuditAnswerBase):
     pass
@@ -113,6 +120,7 @@ class AuditUpdate(BaseModel):
     answers: Optional[List[AuditAnswerCreate]] = None
 
 class AuditResponse(BaseModel):
+
     id: int
     created_at: datetime.datetime
     score: float

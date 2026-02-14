@@ -20,7 +20,7 @@ async def read_categories(
     """
     Retrieve audit categories.
     """
-    query = select(AuditCategory).offset(skip).limit(limit)
+    query = select(AuditCategory).options(selectinload(AuditCategory.questions)).offset(skip).limit(limit)
     result = await db.execute(query)
     categories = result.scalars().all()
     return categories

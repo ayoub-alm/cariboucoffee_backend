@@ -5,7 +5,7 @@ from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
 from app.api import deps
-from app.models.models import Audit, AuditAnswer, AuditQuestion, User, UserRole
+from app.models.models import Audit, AuditAnswer, AuditQuestion, AuditCategory, User, UserRole
 from app.schemas import schemas
 
 router = APIRouter()
@@ -27,7 +27,7 @@ async def read_audits(
         query = select(Audit).options(
             selectinload(Audit.coffee),
             selectinload(Audit.auditor),
-            selectinload(Audit.answers).selectinload(AuditAnswer.question).selectinload(AuditQuestion.category)
+            selectinload(Audit.answers).selectinload(AuditAnswer.question).selectinload(AuditQuestion.category).selectinload(AuditCategory.questions)
         ).offset(skip).limit(limit)
 
         if current_user.role == UserRole.ADMIN:
@@ -91,18 +91,34 @@ async def create_audit(
         
         if question:
             weight = question.weight
-            # Assuming max value per question is 5
-            max_value = 5
-            weighted_score = answer.value * weight
-            max_weighted_score = max_value * weight
+            max_value = 5 # Standard max points for calculation purposes, though logic changes
             
-            total_weighted_score += weighted_score
-            total_max_weighted_score += max_weighted_score
+            # Logic Update per user feedback: Weight IS the score.
+            score_for_question = 0
+            max_score_possible = weight # The weight is the full point value
+            
+            user_choice = answer.choice.lower() if answer.choice else ""
+            correct = question.correct_answer.lower() if question.correct_answer else "oui"
+            
+            if user_choice == correct:
+                score_for_question = weight
+            elif user_choice == 'n/a':
+                score_for_question = question.na_score
+            else:
+                 score_for_question = 0
+                 
+            # Store points in value
+            answer.value = score_for_question 
+            
+            total_weighted_score += score_for_question
+            total_max_weighted_score += max_score_possible
+
         
         db_answer = AuditAnswer(
             audit_id=audit.id,
             question_id=answer.question_id,
             value=answer.value,
+            choice=answer.choice,
             comment=answer.comment
         )
         db.add(db_answer)
@@ -120,7 +136,7 @@ async def create_audit(
     query = select(Audit).options(
         selectinload(Audit.coffee),
         selectinload(Audit.auditor),
-        selectinload(Audit.answers).selectinload(AuditAnswer.question).selectinload(AuditQuestion.category)
+        selectinload(Audit.answers).selectinload(AuditAnswer.question).selectinload(AuditQuestion.category).selectinload(AuditCategory.questions)
     ).where(Audit.id == audit.id)
     result = await db.execute(query)
     return result.scalars().first()
@@ -138,7 +154,7 @@ async def read_audit(
     query = select(Audit).options(
         selectinload(Audit.coffee),
         selectinload(Audit.auditor),
-        selectinload(Audit.answers).selectinload(AuditAnswer.question).selectinload(AuditQuestion.category)
+        selectinload(Audit.answers).selectinload(AuditAnswer.question).selectinload(AuditQuestion.category).selectinload(AuditCategory.questions)
     ).where(Audit.id == audit_id)
     
     result = await db.execute(query)
@@ -215,17 +231,69 @@ async def update_audit(
         from sqlalchemy import delete
         await db.execute(delete(AuditAnswer).where(AuditAnswer.audit_id == id))
         
-        total_score = 0
+        total_weighted_score = 0
+        total_max_weighted_score = 0
+
         for answer in audit_in.answers:
+            # Fetch the question to get its weight and scoring rules
+            question_result = await db.execute(
+                select(AuditQuestion).where(AuditQuestion.id == answer.question_id)
+            )
+            question = question_result.scalars().first()
+            
+            score_for_question = 0
+            if question:
+                weight = question.weight
+                max_score_possible = weight # Weight IS the points
+                
+                user_choice = answer.choice.lower() if answer.choice else ""
+                correct = question.correct_answer.lower() if question.correct_answer else "oui"
+                
+                if user_choice == correct:
+                     score_for_question = weight
+                elif user_choice == 'n/a':
+                     score_for_question = question.na_score
+                     # If N/A gives points, does it count towards max?
+                     # Usually N/A means "Not Applicable" -> remove from max.
+                     # But user said "N/A defined point".
+                     # If I answer N/A and get 5 points (out of 10?), that's weird.
+                     # If I answer N/A and get 'na_score' points, maybe max is also adjusted?
+                     # Let's assume for now: Max is still 'weight' (the question's value).
+                     # And N/A gives you 'na_score' points out of 'weight'.
+                     # If na_score > weight, that would be bonus.
+                     pass 
+                else:
+                     score_for_question = 0
+                
+                # Store the actual points awarded in value
+                answer.value = score_for_question
+                
+                total_weighted_score += score_for_question
+                # If answer is N/A, usually we exclude from denominator if it's truly "Not Applicable".
+                # But if N/A has specific points, it implies it's a valid scored answer.
+                # However, if N/A points is 0, and we keep it in max_score, it penalizes.
+                # If user sets N/A points to 0, maybe they want it excluded?
+                # "make the use able to chose the corret user cause some times non anwsor can be the right question"
+                # "N/A difned point in the creation"
+                # Let's keep it simple: It counts towards max score implies it's a scored field.
+                total_max_weighted_score += max_score_possible
+
+
             db_answer = AuditAnswer(
                 audit_id=audit.id,
                 question_id=answer.question_id,
                 value=answer.value,
+                choice=answer.choice,
                 comment=answer.comment
             )
             db.add(db_answer)
-            total_score += answer.value
-        audit.score = total_score
+        
+        # Calculate percentage score
+        if total_max_weighted_score > 0:
+            audit.score = round((total_weighted_score / total_max_weighted_score) * 100, 2)
+        else:
+            audit.score = 0.0
+
     
     await db.commit()
     await db.refresh(audit)

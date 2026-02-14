@@ -45,16 +45,26 @@ class AuditCategory(Base):
     
     questions = relationship("AuditQuestion", back_populates="category")
 
+    @property
+    def total_score(self) -> int:
+        return sum(q.weight for q in self.questions) if self.questions else 0
+
+
 class AuditQuestion(Base):
     __tablename__ = "audit_questions"
 
     id = Column(Integer, primary_key=True, index=True)
     text = Column(String)
-    weight = Column(Integer, default=1) # Score multiplier
+    weight = Column(Integer, default=1) # Points awarded for correct answer
+
     category_id = Column(Integer, ForeignKey("audit_categories.id"))
     
     category = relationship("AuditCategory", back_populates="questions")
     answers = relationship("AuditAnswer", back_populates="question")
+    
+    correct_answer = Column(String, default="oui") # 'oui' or 'non'
+    na_score = Column(Integer, default=0) # Points awarded if N/A
+
 
 class Audit(Base):
     __tablename__ = "audits"
@@ -83,7 +93,9 @@ class AuditAnswer(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     value = Column(Integer) # e.g. 0-5
+    choice = Column(String, nullable=True) # 'oui', 'non', 'n/a'
     comment = Column(String, nullable=True)
+
     
     audit_id = Column(Integer, ForeignKey("audits.id"))
     question_id = Column(Integer, ForeignKey("audit_questions.id"))

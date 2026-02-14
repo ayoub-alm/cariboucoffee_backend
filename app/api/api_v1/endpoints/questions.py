@@ -22,7 +22,9 @@ async def read_questions(
     Retrieve audit questions.
     Optionally filter by category_id.
     """
-    query = select(AuditQuestion).options(selectinload(AuditQuestion.category))
+    query = select(AuditQuestion).options(
+        selectinload(AuditQuestion.category).selectinload(AuditCategory.questions)
+    )
     
     if category_id:
         query = query.where(AuditQuestion.category_id == category_id)
@@ -43,7 +45,7 @@ async def read_question(
     Get question by ID.
     """
     query = select(AuditQuestion).options(
-        selectinload(AuditQuestion.category)
+        selectinload(AuditQuestion.category).selectinload(AuditCategory.questions)
     ).where(AuditQuestion.id == question_id)
     result = await db.execute(query)
     question = result.scalars().first()
@@ -78,7 +80,10 @@ async def create_question(
     question = AuditQuestion(
         text=question_in.text,
         weight=question_in.weight,
-        category_id=question_in.category_id
+        category_id=question_in.category_id,
+        correct_answer=question_in.correct_answer,
+        na_score=question_in.na_score
+
     )
     db.add(question)
     await db.commit()
@@ -86,7 +91,7 @@ async def create_question(
     
     # Reload with category
     query = select(AuditQuestion).options(
-        selectinload(AuditQuestion.category)
+        selectinload(AuditQuestion.category).selectinload(AuditCategory.questions)
     ).where(AuditQuestion.id == question.id)
     result = await db.execute(query)
     return result.scalars().first()
@@ -125,13 +130,16 @@ async def update_question(
     question.text = question_in.text
     question.weight = question_in.weight
     question.category_id = question_in.category_id
+    question.correct_answer = question_in.correct_answer
+    question.na_score = question_in.na_score
+
     
     await db.commit()
     await db.refresh(question)
     
     # Reload with category
     query = select(AuditQuestion).options(
-        selectinload(AuditQuestion.category)
+        selectinload(AuditQuestion.category).selectinload(AuditCategory.questions)
     ).where(AuditQuestion.id == question.id)
     result = await db.execute(query)
     return result.scalars().first()
