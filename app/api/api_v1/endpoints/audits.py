@@ -10,7 +10,7 @@ from app.schemas import schemas
 
 router = APIRouter()
 
-@router.get("/", response_model=List[schemas.AuditResponse])
+@router.get("", response_model=List[schemas.AuditResponse])
 async def read_audits(
     db: AsyncSession = Depends(deps.get_db),
     skip: int = 0,
@@ -47,7 +47,7 @@ async def read_audits(
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/", response_model=schemas.AuditResponse)
+@router.post("", response_model=schemas.AuditResponse)
 async def create_audit(
     *,
     db: AsyncSession = Depends(deps.get_db),

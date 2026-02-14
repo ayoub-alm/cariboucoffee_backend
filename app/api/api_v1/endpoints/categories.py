@@ -10,7 +10,7 @@ from app.schemas import schemas
 
 router = APIRouter()
 
-@router.get("/", response_model=List[schemas.AuditCategoryResponse])
+@router.get("", response_model=List[schemas.AuditCategoryResponse])
 async def read_categories(
     db: AsyncSession = Depends(deps.get_db),
     skip: int = 0,
@@ -44,7 +44,7 @@ async def read_category(
     
     return category
 
-@router.post("/", response_model=schemas.AuditCategoryResponse)
+@router.post("", response_model=schemas.AuditCategoryResponse)
 async def create_category(
     *,
     db: AsyncSession = Depends(deps.get_db),

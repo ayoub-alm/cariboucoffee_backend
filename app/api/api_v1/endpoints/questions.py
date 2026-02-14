@@ -10,7 +10,7 @@ from app.schemas import schemas
 
 router = APIRouter()
 
-@router.get("/", response_model=List[schemas.AuditQuestionResponse])
+@router.get("", response_model=List[schemas.AuditQuestionResponse])
 async def read_questions(
     db: AsyncSession = Depends(deps.get_db),
     skip: int = 0,
@@ -55,7 +55,7 @@ async def read_question(
     
     return question
 
-@router.post("/", response_model=schemas.AuditQuestionResponse)
+@router.post("", response_model=schemas.AuditQuestionResponse)
 async def create_question(
     *,
     db: AsyncSession = Depends(deps.get_db),
