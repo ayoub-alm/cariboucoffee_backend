@@ -55,9 +55,55 @@ async def create_coffee(
     coffee = Coffee(
         name=coffee_in.name,
         location=coffee_in.location,
-        active=True
+        active=coffee_in.active
     )
     db.add(coffee)
     await db.commit()
     await db.refresh(coffee)
+    return coffee
+
+@router.put("/{coffee_id}", response_model=schemas.CoffeeResponse)
+async def update_coffee(
+    *,
+    db: AsyncSession = Depends(deps.get_db),
+    coffee_id: int,
+    coffee_in: schemas.CoffeeUpdate,
+    current_user: Any = Depends(deps.get_current_active_superuser),
+) -> Any:
+    """
+    Update a coffee.
+    """
+    query = select(Coffee).where(Coffee.id == coffee_id)
+    result = await db.execute(query)
+    coffee = result.scalars().first()
+    if not coffee:
+        raise HTTPException(status_code=404, detail="Coffee not found")
+        
+    update_data = coffee_in.model_dump(exclude_unset=True) # Assuming Pydantic v2
+    for field, value in update_data.items():
+        setattr(coffee, field, value)
+        
+    db.add(coffee)
+    await db.commit()
+    await db.refresh(coffee)
+    return coffee
+
+@router.delete("/{coffee_id}", response_model=schemas.CoffeeResponse)
+async def delete_coffee(
+    *,
+    db: AsyncSession = Depends(deps.get_db),
+    coffee_id: int,
+    current_user: Any = Depends(deps.get_current_active_superuser),
+) -> Any:
+    """
+    Delete a coffee (or mark as inactive).
+    """
+    query = select(Coffee).where(Coffee.id == coffee_id)
+    result = await db.execute(query)
+    coffee = result.scalars().first()
+    if not coffee:
+        raise HTTPException(status_code=404, detail="Coffee not found")
+        
+    await db.delete(coffee)
+    await db.commit()
     return coffee

@@ -14,6 +14,11 @@ class UserBase(BaseModel):
     full_name: Optional[str] = None
     role: UserRole = UserRole.VIEWER
     coffee_id: Optional[int] = None # Relevant for VIEWERS
+    
+    # Notification Preferences
+    receive_daily_report: bool = False
+    receive_weekly_report: bool = False
+    receive_monthly_report: bool = False
 
 class UserCreate(UserBase):
     password: str
@@ -25,6 +30,9 @@ class UserUpdate(BaseModel):
     role: Optional[UserRole] = None
     coffee_id: Optional[int] = None
     is_active: Optional[bool] = None
+    receive_daily_report: Optional[bool] = None
+    receive_weekly_report: Optional[bool] = None
+    receive_monthly_report: Optional[bool] = None
 
 class UserResponse(UserBase):
     id: int
@@ -39,7 +47,12 @@ class CoffeeBase(BaseModel):
     location: str
 
 class CoffeeCreate(CoffeeBase):
-    pass
+    active: bool = True
+
+class CoffeeUpdate(BaseModel):
+    name: Optional[str] = None
+    location: Optional[str] = None
+    active: Optional[bool] = None
 
 class CoffeeResponse(CoffeeBase):
     id: int
@@ -88,13 +101,14 @@ class AuditAnswerBase(BaseModel):
     value: int
     choice: Optional[str] = None
     comment: Optional[str] = None
-
+    photo_data: Optional[str] = None # Base64 encoded image
 
 class AuditAnswerCreate(AuditAnswerBase):
     pass
 
 class AuditAnswerResponse(AuditAnswerBase):
     id: int
+    photo_url: Optional[str] = None
     question: Optional[AuditQuestionResponse] = None
 
     class Config:
@@ -107,6 +121,7 @@ class AuditCreate(BaseModel):
     actions_correctives: Optional[str] = None
     training_needs: Optional[str] = None
     purchases: Optional[str] = None
+    photo_data: Optional[str] = None # Base64 encoded image
     answers: List[AuditAnswerCreate]
 
 class AuditUpdate(BaseModel):
@@ -117,6 +132,7 @@ class AuditUpdate(BaseModel):
     actions_correctives: Optional[str] = None
     training_needs: Optional[str] = None
     purchases: Optional[str] = None
+    photo_data: Optional[str] = None
     answers: Optional[List[AuditAnswerCreate]] = None
 
 class AuditResponse(BaseModel):
@@ -129,6 +145,7 @@ class AuditResponse(BaseModel):
     actions_correctives: Optional[str] = None
     training_needs: Optional[str] = None
     purchases: Optional[str] = None
+    photo_url: Optional[str] = None
     coffee: Optional[CoffeeResponse] = None
     auditor: Optional[UserResponse] = None
     answers: List[AuditAnswerResponse] = []

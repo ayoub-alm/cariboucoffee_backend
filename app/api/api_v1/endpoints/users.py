@@ -122,6 +122,12 @@ async def update_user(
         user.coffee_id = user_in.coffee_id
     if user_in.is_active is not None:
         user.is_active = user_in.is_active
+    if user_in.receive_daily_report is not None:
+        user.receive_daily_report = user_in.receive_daily_report
+    if user_in.receive_weekly_report is not None:
+        user.receive_weekly_report = user_in.receive_weekly_report
+    if user_in.receive_monthly_report is not None:
+        user.receive_monthly_report = user_in.receive_monthly_report
     
     await db.commit()
     await db.refresh(user)

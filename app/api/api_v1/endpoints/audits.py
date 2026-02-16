@@ -7,6 +7,7 @@ from sqlalchemy.orm import selectinload
 from app.api import deps
 from app.models.models import Audit, AuditAnswer, AuditQuestion, AuditCategory, User, UserRole
 from app.schemas import schemas
+from app.utils.image_utils import save_base64_image
 
 router = APIRouter()
 
@@ -64,6 +65,10 @@ async def create_audit(
     # precise calculation of score logic can be added here
     # For now, just sum the values or something simple
     
+    photo_url = None
+    if audit_in.photo_data:
+        photo_url = save_base64_image(audit_in.photo_data)
+
     audit = Audit(
         coffee_id=audit_in.coffee_id,
         auditor_id=current_user.id,
@@ -72,7 +77,8 @@ async def create_audit(
         staff_present=audit_in.staff_present,
         actions_correctives=audit_in.actions_correctives,
         training_needs=audit_in.training_needs,
-        purchases=audit_in.purchases
+        purchases=audit_in.purchases,
+        photo_url=photo_url
     )
     db.add(audit)
     await db.commit()
@@ -113,13 +119,17 @@ async def create_audit(
             total_weighted_score += score_for_question
             total_max_weighted_score += max_score_possible
 
-        
+        photo_url = None
+        if answer.photo_data:
+             photo_url = save_base64_image(answer.photo_data)
+
         db_answer = AuditAnswer(
             audit_id=audit.id,
             question_id=answer.question_id,
             value=answer.value,
             choice=answer.choice,
-            comment=answer.comment
+            comment=answer.comment,
+            photo_url=photo_url
         )
         db.add(db_answer)
     
@@ -220,6 +230,10 @@ async def update_audit(
         audit.training_needs = audit_in.training_needs
     if audit_in.purchases is not None:
         audit.purchases = audit_in.purchases
+    if audit_in.photo_data is not None:
+        photo_url = save_base64_image(audit_in.photo_data)
+        if photo_url:
+            audit.photo_url = photo_url
 
     # If answers provided, replace logic
     if audit_in.answers is not None:

@@ -30,6 +30,11 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     role = Column(Enum(UserRole), default=UserRole.VIEWER)
     
+    # Notification Preferences
+    receive_daily_report = Column(Boolean, default=False)
+    receive_weekly_report = Column(Boolean, default=False)
+    receive_monthly_report = Column(Boolean, default=False)
+    
     # If role is VIEWER, they belong to a specific Coffee
     coffee_id = Column(Integer, ForeignKey("coffees.id"), nullable=True)
     assigned_coffee = relationship("Coffee", back_populates="viewers")
@@ -83,6 +88,7 @@ class Audit(Base):
     actions_correctives = Column(String, nullable=True)
     training_needs = Column(String, nullable=True)
     purchases = Column(String, nullable=True)
+    photo_url = Column(String, nullable=True)
     
     coffee = relationship("Coffee", back_populates="audits")
     auditor = relationship("User", back_populates="audits_created")
@@ -95,6 +101,7 @@ class AuditAnswer(Base):
     value = Column(Integer) # e.g. 0-5
     choice = Column(String, nullable=True) # 'oui', 'non', 'n/a'
     comment = Column(String, nullable=True)
+    photo_url = Column(String, nullable=True)
 
     
     audit_id = Column(Integer, ForeignKey("audits.id"))

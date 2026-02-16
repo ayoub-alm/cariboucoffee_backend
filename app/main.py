@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from app.api.api_v1.api import api_router
 from app.core.config import settings
@@ -10,6 +11,7 @@ from app.models import User, UserRole, Coffee, AuditCategory, AuditQuestion
 from app.core.security import get_password_hash
 from app.db.seed_data import DEFAULT_ADMIN, DEFAULT_COFFEES, AUDIT_CATEGORIES_DATA
 from sqlalchemy import select
+import os
 
 app = FastAPI(title=settings.PROJECT_NAME)
 
@@ -21,6 +23,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Ensure static directory exists
+os.makedirs("app/static", exist_ok=True)
+
+# Mount static files
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
