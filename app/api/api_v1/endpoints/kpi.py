@@ -11,7 +11,7 @@ from app.schemas import schemas
 
 router = APIRouter()
 
-@router.get("/", response_model=schemas.KPIData)
+@router.get("", response_model=schemas.KPIData)
 async def read_kpi(
     db: AsyncSession = Depends(deps.get_db),
     current_user: Any = Depends(deps.get_current_user),

@@ -18,7 +18,7 @@ async def read_user_me(
 ) -> Any:
     return current_user
 
-@router.get("/", response_model=List[schemas.UserResponse])
+@router.get("", response_model=List[schemas.UserResponse])
 async def read_users(
     db: AsyncSession = Depends(deps.get_db),
     skip: int = 0,
@@ -50,7 +50,7 @@ async def read_user_by_id(
         raise HTTPException(status_code=404, detail="User not found")
     return user
 
-@router.post("/", response_model=schemas.UserResponse)
+@router.post("", response_model=schemas.UserResponse)
 async def create_user(
     *,
     db: AsyncSession = Depends(deps.get_db),

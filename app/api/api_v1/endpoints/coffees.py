@@ -9,7 +9,7 @@ from app.schemas import schemas
 
 router = APIRouter()
 
-@router.get("/", response_model=List[schemas.CoffeeResponse])
+@router.get("", response_model=List[schemas.CoffeeResponse])
 async def read_coffees(
     db: AsyncSession = Depends(deps.get_db),
     skip: int = 0,
@@ -42,7 +42,7 @@ async def read_coffees(
 
     return coffees
 
-@router.post("/", response_model=schemas.CoffeeResponse)
+@router.post("", response_model=schemas.CoffeeResponse)
 async def create_coffee(
     *,
     db: AsyncSession = Depends(deps.get_db),
