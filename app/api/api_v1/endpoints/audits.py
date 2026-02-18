@@ -59,97 +59,110 @@ async def create_audit(
     Create new audit.
     Only Admin and Auditor can create.
     """
-    if current_user.role == UserRole.VIEWER:
-        raise HTTPException(status_code=403, detail="Not enough permissions")
+    try:
+        if current_user.role == UserRole.VIEWER:
+            raise HTTPException(status_code=403, detail="Not enough permissions")
 
-    # precise calculation of score logic can be added here
-    # For now, just sum the values or something simple
-    
-    photo_url = None
-    if audit_in.photo_data:
-        photo_url = save_base64_image(audit_in.photo_data)
-
-    audit = Audit(
-        coffee_id=audit_in.coffee_id,
-        auditor_id=current_user.id,
-        score=0.0, # Placeholder
-        shift=audit_in.shift,
-        staff_present=audit_in.staff_present,
-        actions_correctives=audit_in.actions_correctives,
-        training_needs=audit_in.training_needs,
-        purchases=audit_in.purchases,
-        photo_url=photo_url
-    )
-    db.add(audit)
-    await db.commit()
-    await db.refresh(audit)
-    
-    # Calculate weighted score
-    total_weighted_score = 0
-    total_max_weighted_score = 0
-    
-    for answer in audit_in.answers:
-        # Fetch the question to get its weight
-        question_result = await db.execute(
-            select(AuditQuestion).where(AuditQuestion.id == answer.question_id)
-        )
-        question = question_result.scalars().first()
+        # precise calculation of score logic can be added here
+        # For now, just sum the values or something simple
         
-        if question:
-            weight = question.weight
-            max_value = 5 # Standard max points for calculation purposes, though logic changes
-            
-            # Logic Update per user feedback: Weight IS the score.
-            score_for_question = 0
-            max_score_possible = weight # The weight is the full point value
-            
-            user_choice = answer.choice.lower() if answer.choice else ""
-            correct = question.correct_answer.lower() if question.correct_answer else "oui"
-            
-            if user_choice == correct:
-                score_for_question = weight
-            elif user_choice == 'n/a':
-                score_for_question = question.na_score
-            else:
-                 score_for_question = 0
-                 
-            # Store points in value
-            answer.value = score_for_question 
-            
-            total_weighted_score += score_for_question
-            total_max_weighted_score += max_score_possible
-
         photo_url = None
-        if answer.photo_data:
-             photo_url = save_base64_image(answer.photo_data)
+        if audit_in.photo_data:
+            photo_url = save_base64_image(audit_in.photo_data)
 
-        db_answer = AuditAnswer(
-            audit_id=audit.id,
-            question_id=answer.question_id,
-            value=answer.value,
-            choice=answer.choice,
-            comment=answer.comment,
+        audit = Audit(
+            coffee_id=audit_in.coffee_id,
+            auditor_id=current_user.id,
+            score=0.0, # Placeholder
+            shift=audit_in.shift,
+            staff_present=audit_in.staff_present,
+            actions_correctives=audit_in.actions_correctives,
+            training_needs=audit_in.training_needs,
+            purchases=audit_in.purchases,
             photo_url=photo_url
         )
-        db.add(db_answer)
-    
-    # Calculate percentage score
-    if total_max_weighted_score > 0:
-        audit.score = round((total_weighted_score / total_max_weighted_score) * 100, 2)
-    else:
-        audit.score = 0.0
-    
-    await db.commit()
-    await db.refresh(audit)
-    
-    # Reload for response
-    query = select(Audit).options(
-        selectinload(Audit.coffee),
-        selectinload(Audit.auditor),
-        selectinload(Audit.answers).selectinload(AuditAnswer.question).selectinload(AuditQuestion.category).selectinload(AuditCategory.questions)
-    ).where(Audit.id == audit.id)
-    result = await db.execute(query)
-    return result.scalars().first()
+        db.add(audit)
+        await db.commit()
+        await db.refresh(audit)
+        
+        # Calculate weighted score
+        total_weighted_score = 0
+        total_max_weighted_score = 0
+        
+        for answer in audit_in.answers:
+            # Fetch the question to get its weight
+            question_result = await db.execute(
+                select(AuditQuestion).where(AuditQuestion.id == answer.question_id)
+            )
+            question = question_result.scalars().first()
+            
+            if not question:
+                print(f"Skipping invalid question_id: {answer.question_id}")
+                continue
+
+            if question:
+                weight = question.weight or 1
+                
+                user_choice = answer.choice.lower() if answer.choice else ""
+                correct_ans = question.correct_answer.lower() if question.correct_answer else "oui"
+                
+                calculated_value = 0
+                max_score_possible = weight 
+
+                if user_choice == 'n/a':
+                     # New Logic: N/A skips the question entirely from scoring
+                     # We store 0 for value, and do NOT add to totals
+                     calculated_value = 0
+                else:
+                    # Normal scoring
+                    if user_choice == correct_ans:
+                        calculated_value = weight
+                    else:
+                        calculated_value = 0
+                    
+                    total_weighted_score += calculated_value
+                    total_max_weighted_score += max_score_possible
+            else:
+                # Should not happen due to 'if not question: continue' check, but safe default
+                calculated_value = 0
+
+            photo_url = None
+            if answer.photo_data:
+                 photo_url = save_base64_image(answer.photo_data)
+
+            db_answer = AuditAnswer(
+                audit_id=audit.id,
+                question_id=answer.question_id,
+                value=calculated_value,
+                choice=answer.choice,
+                comment=answer.comment,
+                photo_url=photo_url
+            )
+            db.add(db_answer)
+        
+        # Calculate percentage score
+        if total_max_weighted_score > 0:
+            audit.score = round((total_weighted_score / total_max_weighted_score) * 100, 2)
+        else:
+            audit.score = 0.0
+        
+        await db.commit()
+        await db.refresh(audit)
+        
+        # Reload for response
+        query = select(Audit).options(
+            selectinload(Audit.coffee),
+            selectinload(Audit.auditor),
+            selectinload(Audit.answers).selectinload(AuditAnswer.question).selectinload(AuditQuestion.category).selectinload(AuditCategory.questions)
+        ).where(Audit.id == audit.id)
+        result = await db.execute(query)
+        return result.scalars().first()
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Error creating audit: {str(e)}")
 
 @router.get("/{audit_id}", response_model=schemas.AuditResponse)
 async def read_audit(
@@ -255,48 +268,38 @@ async def update_audit(
             )
             question = question_result.scalars().first()
             
-            score_for_question = 0
+            if not question:
+                print(f"Skipping invalid question_id in update: {answer.question_id}")
+                continue
+
             if question:
-                weight = question.weight
-                max_score_possible = weight # Weight IS the points
+                weight = question.weight or 1
+                max_score_possible = weight 
                 
                 user_choice = answer.choice.lower() if answer.choice else ""
-                correct = question.correct_answer.lower() if question.correct_answer else "oui"
-                
-                if user_choice == correct:
-                     score_for_question = weight
-                elif user_choice == 'n/a':
-                     score_for_question = question.na_score
-                     # If N/A gives points, does it count towards max?
-                     # Usually N/A means "Not Applicable" -> remove from max.
-                     # But user said "N/A defined point".
-                     # If I answer N/A and get 5 points (out of 10?), that's weird.
-                     # If I answer N/A and get 'na_score' points, maybe max is also adjusted?
-                     # Let's assume for now: Max is still 'weight' (the question's value).
-                     # And N/A gives you 'na_score' points out of 'weight'.
-                     # If na_score > weight, that would be bonus.
-                     pass 
+                correct_ans = question.correct_answer.lower() if question.correct_answer else "oui"
+
+                calculated_value = 0
+
+                if user_choice == 'n/a':
+                     # New Logic: N/A skips scoring
+                     calculated_value = 0
                 else:
-                     score_for_question = 0
-                
-                # Store the actual points awarded in value
-                answer.value = score_for_question
-                
-                total_weighted_score += score_for_question
-                # If answer is N/A, usually we exclude from denominator if it's truly "Not Applicable".
-                # But if N/A has specific points, it implies it's a valid scored answer.
-                # However, if N/A points is 0, and we keep it in max_score, it penalizes.
-                # If user sets N/A points to 0, maybe they want it excluded?
-                # "make the use able to chose the corret user cause some times non anwsor can be the right question"
-                # "N/A difned point in the creation"
-                # Let's keep it simple: It counts towards max score implies it's a scored field.
-                total_max_weighted_score += max_score_possible
+                    if user_choice == correct_ans:
+                         calculated_value = weight
+                    else:
+                         calculated_value = 0
+                    
+                    total_weighted_score += calculated_value
+                    total_max_weighted_score += max_score_possible
+            else:
+                 calculated_value = 0
 
 
             db_answer = AuditAnswer(
                 audit_id=audit.id,
                 question_id=answer.question_id,
-                value=answer.value,
+                value=calculated_value,
                 choice=answer.choice,
                 comment=answer.comment
             )
