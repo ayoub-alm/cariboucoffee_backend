@@ -4,7 +4,8 @@ services:
   db:
     image: postgres:15
     volumes:
-      - postgres_data:/var/lib/postgresql/data/
+      # Persist PostgreSQL data to local machine at ./data/postgres
+      - ./data/postgres:/var/lib/postgresql/data/
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
@@ -17,6 +18,8 @@ services:
     command: bash start.sh
     volumes:
       - .:/app
+      # Persist uploaded images to local machine at ./data/uploads
+      - ./data/uploads:/app/app/static/uploads
     ports:
       - "0.0.0.0:8008:8000"
     environment:
@@ -27,6 +30,3 @@ services:
       - POSTGRES_PORT=5432
     depends_on:
       - db
-
-volumes:
-  postgres_data:
