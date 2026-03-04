@@ -17,21 +17,26 @@ depends_on = None
 
 
 def upgrade():
-    # Add ref column as nullable first (existing rows can't have a NOT NULL constraint
-    # without a default, and we want to back-fill later)
-    op.add_column('coffees', sa.Column('ref', sa.String(), nullable=True))
+    # Use IF NOT EXISTS so the migration is safe to run even if the column
+    # was already added manually (e.g. via a direct SQL fix on the server).
+    op.execute("""
+        ALTER TABLE coffees
+        ADD COLUMN IF NOT EXISTS ref VARCHAR
+    """)
 
-    # Back-fill existing rows with a generated ref like CAF-001, CAF-002, …
+    # Back-fill any rows that still have NULL ref
     op.execute("""
         UPDATE coffees
         SET ref = 'CAF-' || LPAD(id::text, 3, '0')
         WHERE ref IS NULL
     """)
 
-    # Now add a unique index on ref
-    op.create_index('ix_coffees_ref', 'coffees', ['ref'], unique=True)
+    # Create unique index only if it doesn't already exist
+    op.execute("""
+        CREATE UNIQUE INDEX IF NOT EXISTS ix_coffees_ref ON coffees (ref)
+    """)
 
 
 def downgrade():
-    op.drop_index('ix_coffees_ref', table_name='coffees')
-    op.drop_column('coffees', 'ref')
+    op.execute("DROP INDEX IF EXISTS ix_coffees_ref")
+    op.execute("ALTER TABLE coffees DROP COLUMN IF EXISTS ref")
