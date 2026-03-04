@@ -50,9 +50,18 @@ async def create_coffee(
     current_user: Any = Depends(deps.get_current_active_superuser),
 ) -> Any:
     """
-    Create new coffee.
+    Create new coffee. If `ref` is not provided, auto-generates one (CAF-001, CAF-002, …).
     """
+    ref = coffee_in.ref
+    if not ref:
+        # Count existing coffees to build the next ref
+        from sqlalchemy import func as sa_func
+        count_result = await db.execute(select(sa_func.count(Coffee.id)))
+        count = count_result.scalar() or 0
+        ref = f"CAF-{(count + 1):03d}"
+
     coffee = Coffee(
+        ref=ref,
         name=coffee_in.name,
         location=coffee_in.location,
         active=coffee_in.active

@@ -47,15 +47,18 @@ class CoffeeBase(BaseModel):
     location: str
 
 class CoffeeCreate(CoffeeBase):
+    ref: Optional[str] = None   # If not provided, auto-generated as CAF-XXX
     active: bool = True
 
 class CoffeeUpdate(BaseModel):
+    ref: Optional[str] = None
     name: Optional[str] = None
     location: Optional[str] = None
     active: Optional[bool] = None
 
 class CoffeeResponse(CoffeeBase):
     id: int
+    ref: Optional[str] = None
     active: bool
 
     class Config:

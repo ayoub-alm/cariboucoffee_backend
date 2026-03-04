@@ -13,6 +13,7 @@ class Coffee(Base):
     __tablename__ = "coffees"
     
     id = Column(Integer, primary_key=True, index=True)
+    ref = Column(String, unique=True, nullable=True, index=True)  # e.g. CAF-001
     name = Column(String, index=True)
     location = Column(String)
     active = Column(Boolean, default=True)
