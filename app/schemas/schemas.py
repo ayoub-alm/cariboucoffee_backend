@@ -83,7 +83,7 @@ class AuditCategoryResponse(AuditCategoryBase):
 class AuditQuestionBase(BaseModel):
     text: str
     weight: int = 1
-    category_id: int
+    category_id: Optional[int] = None
     correct_answer: str = "oui"
     na_score: int = 0
 
