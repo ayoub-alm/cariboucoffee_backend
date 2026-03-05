@@ -35,7 +35,7 @@ async def read_category(
     """
     Get category by ID.
     """
-    query = select(AuditCategory).where(AuditCategory.id == category_id)
+    query = select(AuditCategory).where(AuditCategory.id == category_id).options(selectinload(AuditCategory.questions))
     result = await db.execute(query)
     category = result.scalars().first()
     
@@ -64,7 +64,10 @@ async def create_category(
     )
     db.add(category)
     await db.commit()
-    await db.refresh(category)
+    
+    query = select(AuditCategory).where(AuditCategory.id == category.id).options(selectinload(AuditCategory.questions))
+    result = await db.execute(query)
+    category = result.scalars().first()
     return category
 
 @router.put("/{category_id}", response_model=schemas.AuditCategoryResponse)
@@ -82,7 +85,7 @@ async def update_category(
     if current_user.role != UserRole.ADMIN:
         raise HTTPException(status_code=403, detail="Not enough permissions")
     
-    query = select(AuditCategory).where(AuditCategory.id == category_id)
+    query = select(AuditCategory).where(AuditCategory.id == category_id).options(selectinload(AuditCategory.questions))
     result = await db.execute(query)
     category = result.scalars().first()
     
@@ -93,7 +96,11 @@ async def update_category(
     category.description = category_in.description
     
     await db.commit()
-    await db.refresh(category)
+    
+    # Reload to avoid MissingGreenlet error on relation access
+    query = select(AuditCategory).where(AuditCategory.id == category_id).options(selectinload(AuditCategory.questions))
+    result = await db.execute(query)
+    category = result.scalars().first()
     return category
 
 @router.delete("/{category_id}")
