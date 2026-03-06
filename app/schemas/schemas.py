@@ -100,8 +100,8 @@ class AuditQuestionResponse(AuditQuestionBase):
 
 # --- Audit Schemas ---
 class AuditAnswerBase(BaseModel):
-    question_id: int
-    value: int
+    question_id: Optional[int] = None
+    value: Optional[int] = None
     choice: Optional[str] = None
     comment: Optional[str] = None
     photo_data: Optional[str] = None # Base64 encoded image
