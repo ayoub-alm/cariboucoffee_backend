@@ -15,11 +15,14 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.create_table(
-        'manager_coffees',
-        sa.Column('user_id', sa.Integer(), sa.ForeignKey('users.id'), primary_key=True),
-        sa.Column('coffee_id', sa.Integer(), sa.ForeignKey('coffees.id'), primary_key=True),
-    )
+    conn = op.get_bind()
+    inspector = sa.inspect(conn)
+    if not inspector.has_table('manager_coffees'):
+        op.create_table(
+            'manager_coffees',
+            sa.Column('user_id', sa.Integer(), sa.ForeignKey('users.id'), primary_key=True),
+            sa.Column('coffee_id', sa.Integer(), sa.ForeignKey('coffees.id'), primary_key=True),
+        )
 
 
 def downgrade() -> None:
