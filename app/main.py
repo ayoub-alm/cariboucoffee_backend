@@ -74,16 +74,18 @@ async def startup_event():
             for cat_name, cat_data in AUDIT_CATEGORIES_DATA.items():
                 category = AuditCategory(
                     name=cat_name,
-                    description=cat_data["description"]
+                    description=cat_data.get("description"),
+                    icon=cat_data.get("icon")
                 )
                 db.add(category)
-                await db.flush()  # Get the category ID
+                await db.flush()
                 
                 for question_data in cat_data["questions"]:
                     question = AuditQuestion(
                         text=question_data["text"],
-                        weight=question_data["weight"],
-                        category_id=category.id
+                        weight=question_data.get("weight", 1),
+                        category_id=category.id,
+                        correct_answer=question_data.get("correct_answer", "oui")
                     )
                     db.add(question)
             

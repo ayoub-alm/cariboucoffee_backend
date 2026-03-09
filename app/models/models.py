@@ -7,19 +7,29 @@ from app.db.base import Base
 class UserRole(str, enum.Enum):
     ADMIN = "ADMIN"
     AUDITOR = "AUDITOR"
+    MANAGER = "MANAGER"
+    BOSS = "BOSS"
     VIEWER = "VIEWER"
+
+manager_coffees = Table(
+    "manager_coffees",
+    Base.metadata,
+    Column("user_id", Integer, ForeignKey("users.id"), primary_key=True),
+    Column("coffee_id", Integer, ForeignKey("coffees.id"), primary_key=True),
+)
 
 class Coffee(Base):
     __tablename__ = "coffees"
     
     id = Column(Integer, primary_key=True, index=True)
-    ref = Column(String, unique=True, nullable=True, index=True)  # e.g. CAF-001
+    ref = Column(String, unique=True, nullable=True, index=True)
     name = Column(String, index=True)
     location = Column(String)
     active = Column(Boolean, default=True)
 
     audits = relationship("Audit", back_populates="coffee")
-    viewers = relationship("User", back_populates="assigned_coffee")
+    viewers = relationship("User", back_populates="assigned_coffee", foreign_keys="User.coffee_id")
+    managers = relationship("User", secondary=manager_coffees, back_populates="managed_coffees")
 
 class User(Base):
     __tablename__ = "users"
@@ -31,14 +41,16 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     role = Column(Enum(UserRole), default=UserRole.VIEWER)
     
-    # Notification Preferences
     receive_daily_report = Column(Boolean, default=False)
     receive_weekly_report = Column(Boolean, default=False)
     receive_monthly_report = Column(Boolean, default=False)
     
-    # If role is VIEWER, they belong to a specific Coffee
+    # For VIEWER: single assigned coffee
     coffee_id = Column(Integer, ForeignKey("coffees.id"), nullable=True)
-    assigned_coffee = relationship("Coffee", back_populates="viewers")
+    assigned_coffee = relationship("Coffee", back_populates="viewers", foreign_keys=[coffee_id])
+    
+    # For MANAGER: multiple managed coffees
+    managed_coffees = relationship("Coffee", secondary=manager_coffees, back_populates="managers")
     
     audits_created = relationship("Audit", back_populates="auditor")
 
@@ -48,6 +60,7 @@ class AuditCategory(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True)
     description = Column(String, nullable=True)
+    icon = Column(String, nullable=True)
     
     questions = relationship("AuditQuestion", back_populates="category")
 
@@ -72,13 +85,18 @@ class AuditQuestion(Base):
     na_score = Column(Integer, default=0) # Points awarded if N/A
 
 
+class AuditStatus(str, enum.Enum):
+    IN_PROGRESS = "IN_PROGRESS"
+    COMPLETED = "COMPLETED"
+
 class Audit(Base):
     __tablename__ = "audits"
     
     id = Column(Integer, primary_key=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-    score = Column(Float, default=0.0) # Calculated total score
+    score = Column(Float, default=0.0)
+    status = Column(Enum(AuditStatus), default=AuditStatus.IN_PROGRESS)
     
     coffee_id = Column(Integer, ForeignKey("coffees.id"))
     auditor_id = Column(Integer, ForeignKey("users.id"))

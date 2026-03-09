@@ -5,7 +5,7 @@ from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
 from app.api import deps
-from app.models.models import Audit, AuditAnswer, AuditQuestion, AuditCategory, User, UserRole
+from app.models.models import Audit, AuditAnswer, AuditQuestion, AuditCategory, AuditStatus, User, UserRole
 from app.schemas import schemas
 from app.utils.image_utils import save_base64_image
 
@@ -31,13 +31,18 @@ async def read_audits(
             selectinload(Audit.answers).selectinload(AuditAnswer.question).selectinload(AuditQuestion.category).selectinload(AuditCategory.questions)
         ).offset(skip).limit(limit)
 
-        if current_user.role == UserRole.ADMIN:
-            pass # No filter
+        if current_user.role in (UserRole.ADMIN, UserRole.BOSS):
+            pass
         elif current_user.role == UserRole.AUDITOR:
             query = query.where(Audit.auditor_id == current_user.id)
+        elif current_user.role == UserRole.MANAGER:
+            managed_ids = [c.id for c in current_user.managed_coffees] if current_user.managed_coffees else []
+            if not managed_ids:
+                return []
+            query = query.where(Audit.coffee_id.in_(managed_ids))
         elif current_user.role == UserRole.VIEWER:
             if not current_user.coffee_id:
-                return [] # Viewer with no coffee sees nothing
+                return []
             query = query.where(Audit.coffee_id == current_user.coffee_id)
         
         result = await db.execute(query)
@@ -60,7 +65,7 @@ async def create_audit(
     Only Admin and Auditor can create.
     """
     try:
-        if current_user.role == UserRole.VIEWER:
+        if current_user.role not in (UserRole.ADMIN, UserRole.AUDITOR):
             raise HTTPException(status_code=403, detail="Not enough permissions")
 
         # precise calculation of score logic can be added here
@@ -73,7 +78,8 @@ async def create_audit(
         audit = Audit(
             coffee_id=audit_in.coffee_id,
             auditor_id=current_user.id,
-            score=0.0, # Placeholder
+            score=0.0,
+            status=audit_in.status or AuditStatus.IN_PROGRESS,
             shift=audit_in.shift,
             staff_present=audit_in.staff_present,
             actions_correctives=audit_in.actions_correctives,
@@ -186,11 +192,14 @@ async def read_audit(
     if not audit:
         raise HTTPException(status_code=404, detail="Audit not found")
     
-    # Authorization check
-    if current_user.role == UserRole.ADMIN:
-        pass  # Admin can see all
+    if current_user.role in (UserRole.ADMIN, UserRole.BOSS):
+        pass
     elif current_user.role == UserRole.AUDITOR:
         if audit.auditor_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Not authorized to view this audit")
+    elif current_user.role == UserRole.MANAGER:
+        managed_ids = [c.id for c in current_user.managed_coffees] if current_user.managed_coffees else []
+        if audit.coffee_id not in managed_ids:
             raise HTTPException(status_code=403, detail="Not authorized to view this audit")
     elif current_user.role == UserRole.VIEWER:
         if audit.coffee_id != current_user.coffee_id:
@@ -214,23 +223,23 @@ async def update_audit(
     query = select(Audit).options(
         selectinload(Audit.coffee),
         selectinload(Audit.auditor),
-        selectinload(Audit.answers)
+        selectinload(Audit.answers).selectinload(AuditAnswer.question).selectinload(AuditQuestion.category).selectinload(AuditCategory.questions)
     ).where(Audit.id == id)
     result = await db.execute(query)
     audit = result.scalars().first()
     if not audit:
         raise HTTPException(status_code=404, detail="Audit not found")
         
-    # Check permissions
     if current_user.role == UserRole.ADMIN:
         pass
     elif current_user.role == UserRole.AUDITOR:
         if audit.auditor_id != current_user.id:
-             raise HTTPException(status_code=403, detail="Not enough permissions")
+            raise HTTPException(status_code=403, detail="Not enough permissions")
     else:
         raise HTTPException(status_code=403, detail="Not enough permissions")
 
-    # Update basic fields
+    if audit_in.status is not None:
+        audit.status = audit_in.status
     if audit_in.coffee_id is not None:
         audit.coffee_id = audit_in.coffee_id
     if audit_in.shift is not None:
@@ -296,12 +305,17 @@ async def update_audit(
                  calculated_value = 0
 
 
+            answer_photo_url = None
+            if answer.photo_data:
+                answer_photo_url = save_base64_image(answer.photo_data)
+
             db_answer = AuditAnswer(
                 audit_id=audit.id,
                 question_id=answer.question_id,
                 value=calculated_value,
                 choice=answer.choice,
-                comment=answer.comment
+                comment=answer.comment,
+                photo_url=answer_photo_url
             )
             db.add(db_answer)
         
@@ -341,7 +355,7 @@ async def delete_audit(
         pass
     elif current_user.role == UserRole.AUDITOR:
         if audit.auditor_id != current_user.id:
-             raise HTTPException(status_code=403, detail="Not enough permissions")
+            raise HTTPException(status_code=403, detail="Not enough permissions")
     else:
         raise HTTPException(status_code=403, detail="Not enough permissions")
 

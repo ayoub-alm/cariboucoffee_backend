@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from typing import List, Optional
 import datetime
 from enum import Enum
@@ -6,6 +6,8 @@ from enum import Enum
 class UserRole(str, Enum):
     ADMIN = "ADMIN"
     AUDITOR = "AUDITOR"
+    MANAGER = "MANAGER"
+    BOSS = "BOSS"
     VIEWER = "VIEWER"
 
 # --- User Schemas ---
@@ -13,9 +15,9 @@ class UserBase(BaseModel):
     email: EmailStr
     full_name: Optional[str] = None
     role: UserRole = UserRole.VIEWER
-    coffee_id: Optional[int] = None # Relevant for VIEWERS
+    coffee_id: Optional[int] = None
+    managed_coffee_ids: Optional[List[int]] = None
     
-    # Notification Preferences
     receive_daily_report: bool = False
     receive_weekly_report: bool = False
     receive_monthly_report: bool = False
@@ -29,6 +31,7 @@ class UserUpdate(BaseModel):
     full_name: Optional[str] = None
     role: Optional[UserRole] = None
     coffee_id: Optional[int] = None
+    managed_coffee_ids: Optional[List[int]] = None
     is_active: Optional[bool] = None
     receive_daily_report: Optional[bool] = None
     receive_weekly_report: Optional[bool] = None
@@ -37,9 +40,22 @@ class UserUpdate(BaseModel):
 class UserResponse(UserBase):
     id: int
     is_active: bool
+    managed_coffee_ids: List[int] = []
 
     class Config:
         from_attributes = True
+
+
+class PasswordChange(BaseModel):
+    """Change own password: current + new."""
+    current_password: str
+    new_password: str = Field(..., min_length=6)
+
+
+class PasswordReset(BaseModel):
+    """Admin sets a user's new password (no current password required)."""
+    new_password: str = Field(..., min_length=6)
+
 
 # --- Coffee Schemas ---
 class CoffeeBase(BaseModel):
@@ -68,6 +84,7 @@ class CoffeeResponse(CoffeeBase):
 class AuditCategoryBase(BaseModel):
     name: str
     description: Optional[str] = None
+    icon: Optional[str] = None
 
 class AuditCategoryCreate(AuditCategoryBase):
     pass
@@ -98,6 +115,10 @@ class AuditQuestionResponse(AuditQuestionBase):
     class Config:
         from_attributes = True
 
+class AuditStatus(str, Enum):
+    IN_PROGRESS = "IN_PROGRESS"
+    COMPLETED = "COMPLETED"
+
 # --- Audit Schemas ---
 class AuditAnswerBase(BaseModel):
     question_id: Optional[int] = None
@@ -119,16 +140,18 @@ class AuditAnswerResponse(AuditAnswerBase):
 
 class AuditCreate(BaseModel):
     coffee_id: int
+    status: AuditStatus = AuditStatus.IN_PROGRESS
     shift: Optional[str] = None
     staff_present: Optional[str] = None
     actions_correctives: Optional[str] = None
     training_needs: Optional[str] = None
     purchases: Optional[str] = None
-    photo_data: Optional[str] = None # Base64 encoded image
-    answers: List[AuditAnswerCreate]
+    photo_data: Optional[str] = None
+    answers: List[AuditAnswerCreate] = []
 
 class AuditUpdate(BaseModel):
     coffee_id: Optional[int] = None
+    status: Optional[AuditStatus] = None
     score: Optional[float] = None
     shift: Optional[str] = None
     staff_present: Optional[str] = None
@@ -139,10 +162,10 @@ class AuditUpdate(BaseModel):
     answers: Optional[List[AuditAnswerCreate]] = None
 
 class AuditResponse(BaseModel):
-
     id: int
     created_at: datetime.datetime
     score: float
+    status: Optional[str] = "IN_PROGRESS"
     shift: Optional[str] = None
     staff_present: Optional[str] = None
     actions_correctives: Optional[str] = None

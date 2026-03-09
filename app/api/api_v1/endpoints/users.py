@@ -4,21 +4,80 @@ from fastapi.encoders import jsonable_encoder
 from pydantic.networks import EmailStr
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from sqlalchemy.orm import selectinload
 
 from app.api import deps
-from app.models.models import User, UserRole
+from app.models.models import User, UserRole, Coffee
 from app.schemas import schemas
-from app.core.security import get_password_hash
+from app.core.security import get_password_hash, verify_password
 
 router = APIRouter()
 
-@router.get("/me", response_model=schemas.UserResponse)
+
+def _user_to_response(user: User) -> dict:
+    return {
+        "id": user.id,
+        "email": user.email,
+        "full_name": user.full_name,
+        "is_active": user.is_active,
+        "role": user.role,
+        "coffee_id": user.coffee_id,
+        "receive_daily_report": user.receive_daily_report,
+        "receive_weekly_report": user.receive_weekly_report,
+        "receive_monthly_report": user.receive_monthly_report,
+        "managed_coffee_ids": [c.id for c in user.managed_coffees] if user.managed_coffees else [],
+    }
+
+
+async def _load_user(db: AsyncSession, user_id: int) -> User | None:
+    result = await db.execute(
+        select(User).options(selectinload(User.managed_coffees)).where(User.id == user_id)
+    )
+    return result.scalars().first()
+
+
+@router.get("/me")
 async def read_user_me(
+    db: AsyncSession = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
-    return current_user
+    user = await _load_user(db, current_user.id)
+    return _user_to_response(user)
 
-@router.get("", response_model=List[schemas.UserResponse])
+
+@router.patch("/me/password")
+async def update_my_password(
+    body: schemas.PasswordChange,
+    db: AsyncSession = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+) -> Any:
+    """Change the current user's password. Requires current password."""
+    if not verify_password(body.current_password, current_user.hashed_password):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Mot de passe actuel incorrect")
+    current_user.hashed_password = get_password_hash(body.new_password)
+    await db.commit()
+    return {"message": "Mot de passe mis à jour"}
+
+
+@router.patch("/{user_id}/password")
+async def set_user_password(
+    user_id: int,
+    body: schemas.PasswordReset,
+    db: AsyncSession = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+) -> Any:
+    """Admin sets a user's password (reset without current password)."""
+    if current_user.role != UserRole.ADMIN:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not enough privileges")
+    user = await _load_user(db, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    user.hashed_password = get_password_hash(body.new_password)
+    await db.commit()
+    return {"message": "Mot de passe mis à jour"}
+
+
+@router.get("")
 async def read_users(
     db: AsyncSession = Depends(deps.get_db),
     skip: int = 0,
@@ -26,69 +85,70 @@ async def read_users(
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
     if current_user.role != UserRole.ADMIN:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="The user doesn't have enough privileges",
-        )
-    result = await db.execute(select(User).offset(skip).limit(limit))
-    return result.scalars().all()
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not enough privileges")
+    result = await db.execute(
+        select(User).options(selectinload(User.managed_coffees)).offset(skip).limit(limit)
+    )
+    users = result.scalars().all()
+    return [_user_to_response(u) for u in users]
 
-@router.get("/{user_id}", response_model=schemas.UserResponse)
+
+@router.get("/{user_id}")
 async def read_user_by_id(
     user_id: int,
     current_user: User = Depends(deps.get_current_user),
     db: AsyncSession = Depends(deps.get_db),
 ) -> Any:
     if current_user.role != UserRole.ADMIN and current_user.id != user_id:
-        raise HTTPException(
-             status_code=status.HTTP_403_FORBIDDEN,
-            detail="The user doesn't have enough privileges",
-        )
-    result = await db.execute(select(User).where(User.id == user_id))
-    user = result.scalars().first()
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not enough privileges")
+    user = await _load_user(db, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    return user
+    return _user_to_response(user)
 
-@router.post("", response_model=schemas.UserResponse)
+
+async def _sync_managed_coffees(db: AsyncSession, user: User, coffee_ids: List[int]):
+    if coffee_ids is None:
+        return
+    result = await db.execute(select(Coffee).where(Coffee.id.in_(coffee_ids)))
+    coffees = result.scalars().all()
+    user.managed_coffees = list(coffees)
+
+
+@router.post("")
 async def create_user(
     *,
     db: AsyncSession = Depends(deps.get_db),
     user_in: schemas.UserCreate,
-    current_user: User = Depends(deps.get_current_user), # Only admin can create via API? Usually yes.
+    current_user: User = Depends(deps.get_current_user),
 ) -> Any:
-    """
-    Create new user.
-    Only Admin can create users.
-    """
     if current_user.role != UserRole.ADMIN:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="The user doesn't have enough privileges",
-        )
-        
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not enough privileges")
+
     result = await db.execute(select(User).where(User.email == user_in.email))
-    existing_user = result.scalars().first()
-    if existing_user:
-        raise HTTPException(
-            status_code=400,
-            detail="The user with this username already exists in the system",
-        )
-        
+    if result.scalars().first():
+        raise HTTPException(status_code=400, detail="A user with this email already exists")
+
     user = User(
         email=user_in.email,
         hashed_password=get_password_hash(user_in.password),
         full_name=user_in.full_name,
         role=user_in.role,
         is_active=True,
-        coffee_id=user_in.coffee_id
+        coffee_id=user_in.coffee_id,
     )
     db.add(user)
-    await db.commit()
-    await db.refresh(user)
-    return user
+    await db.flush()
 
-@router.put("/{user_id}", response_model=schemas.UserResponse)
+    if user_in.managed_coffee_ids:
+        await _sync_managed_coffees(db, user, user_in.managed_coffee_ids)
+
+    await db.commit()
+    user = await _load_user(db, user.id)
+    return _user_to_response(user)
+
+
+@router.put("/{user_id}")
 async def update_user(
     *,
     db: AsyncSession = Depends(deps.get_db),
@@ -96,20 +156,13 @@ async def update_user(
     user_in: schemas.UserUpdate,
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
-    """
-    Update a user.
-    """
     if current_user.role != UserRole.ADMIN:
-         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="The user doesn't have enough privileges",
-        )
-        
-    result = await db.execute(select(User).where(User.id == user_id))
-    user = result.scalars().first()
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not enough privileges")
+
+    user = await _load_user(db, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-        
+
     if user_in.email is not None:
         user.email = user_in.email
     if user_in.password:
@@ -128,32 +181,29 @@ async def update_user(
         user.receive_weekly_report = user_in.receive_weekly_report
     if user_in.receive_monthly_report is not None:
         user.receive_monthly_report = user_in.receive_monthly_report
-    
-    await db.commit()
-    await db.refresh(user)
-    return user
 
-@router.delete("/{user_id}", response_model=schemas.UserResponse)
+    if user_in.managed_coffee_ids is not None:
+        await _sync_managed_coffees(db, user, user_in.managed_coffee_ids)
+
+    await db.commit()
+    user = await _load_user(db, user.id)
+    return _user_to_response(user)
+
+
+@router.delete("/{user_id}")
 async def delete_user(
     *,
     db: AsyncSession = Depends(deps.get_db),
     user_id: int,
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
-    """
-    Delete a user.
-    """
     if current_user.role != UserRole.ADMIN:
-         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="The user doesn't have enough privileges",
-        )
-        
-    result = await db.execute(select(User).where(User.id == user_id))
-    user = result.scalars().first()
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not enough privileges")
+
+    user = await _load_user(db, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-        
+
     await db.delete(user)
     await db.commit()
-    return user
+    return _user_to_response(user)

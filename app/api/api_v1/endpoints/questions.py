@@ -1,4 +1,4 @@
-from typing import Any, List
+from typing import Any, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -15,7 +15,7 @@ async def read_questions(
     db: AsyncSession = Depends(deps.get_db),
     skip: int = 0,
     limit: int = 200,
-    category_id: int = None,
+    category_id: Optional[int] = None,
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
     """
