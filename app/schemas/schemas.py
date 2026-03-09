@@ -184,7 +184,9 @@ class KPIData(BaseModel):
     total_audits: int
     average_score: float
     top_performer: Optional[str]
+    worst_performer: Optional[str] = None
     recent_trend: List[float] = []
+    scores_per_category: dict[str, float] = {}
     compliance_rate: float  # Percentage of audits with score >= 80
     total_coffee_shops: int
     audits_this_month: int

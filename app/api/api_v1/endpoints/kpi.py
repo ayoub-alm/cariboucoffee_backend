@@ -6,7 +6,7 @@ from sqlalchemy import func
 from datetime import datetime
 
 from app.api import deps
-from app.models.models import Audit, Coffee, User, UserRole
+from app.models.models import Audit, Coffee, User, UserRole, AuditAnswer, AuditQuestion, AuditCategory
 from app.schemas import schemas
 
 router = APIRouter()
@@ -47,7 +47,9 @@ async def read_kpi(
             "total_audits": 0,
             "average_score": 0.0,
             "top_performer": None,
+            "worst_performer": None,
             "recent_trend": [],
+            "scores_per_category": {},
             "compliance_rate": 0.0,
             "total_coffee_shops": total_coffee_shops,
             "audits_this_month": 0,
@@ -88,6 +90,23 @@ async def read_kpi(
     result = await db.execute(top_stmt)
     top_performer = result.scalar()
 
+    worst_stmt = (
+        select(Coffee.name)
+        .join(Audit, Coffee.id == Audit.coffee_id)
+    )
+    if current_user.role == UserRole.AUDITOR:
+        worst_stmt = worst_stmt.where(Audit.auditor_id == current_user.id)
+    elif current_user.role == UserRole.MANAGER:
+        managed_ids = [c.id for c in current_user.managed_coffees] if current_user.managed_coffees else []
+        if managed_ids:
+            worst_stmt = worst_stmt.where(Audit.coffee_id.in_(managed_ids))
+    elif current_user.role == UserRole.VIEWER:
+        if current_user.coffee_id:
+            worst_stmt = worst_stmt.where(Audit.coffee_id == current_user.coffee_id)
+    worst_stmt = worst_stmt.group_by(Coffee.id, Coffee.name).order_by(func.avg(Audit.score).asc()).limit(1)
+    result = await db.execute(worst_stmt)
+    worst_performer = result.scalar()
+
     first_day_of_month = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
     month_query = _apply_role_filter(
@@ -102,11 +121,48 @@ async def read_kpi(
     result = await db.execute(avg_month_query)
     average_score_this_month = result.scalar() or 0.0
 
+    # Calculate scores per category
+    cat_query = (
+        select(
+            AuditCategory.name,
+            func.sum(AuditAnswer.value).label("total_val"),
+            func.sum(AuditQuestion.weight).label("total_weight"),
+        )
+        .select_from(AuditAnswer)
+        .join(Audit, Audit.id == AuditAnswer.audit_id)
+        .join(AuditQuestion, AuditQuestion.id == AuditAnswer.question_id)
+        .join(AuditCategory, AuditCategory.id == AuditQuestion.category_id)
+        .where(func.lower(AuditAnswer.choice) != 'n/a')
+    )
+    
+    if current_user.role == UserRole.AUDITOR:
+        cat_query = cat_query.where(Audit.auditor_id == current_user.id)
+    elif current_user.role == UserRole.MANAGER:
+        managed_ids = [c.id for c in current_user.managed_coffees] if current_user.managed_coffees else []
+        if managed_ids:
+            cat_query = cat_query.where(Audit.coffee_id.in_(managed_ids))
+    elif current_user.role == UserRole.VIEWER:
+        if current_user.coffee_id:
+            cat_query = cat_query.where(Audit.coffee_id == current_user.coffee_id)
+            
+    cat_query = cat_query.group_by(AuditCategory.name)
+    
+    result = await db.execute(cat_query)
+    scores_per_category = {}
+    for row in result.all():
+        cat_name = row[0]
+        total_val = row[1] or 0
+        total_weight = row[2] or 1
+        scores_per_category[cat_name] = round((total_val / total_weight) * 100, 2) if total_weight > 0 else 0.0
+
+
     return {
         "total_audits": total_audits,
         "average_score": round(average_score, 2),
         "top_performer": top_performer,
+        "worst_performer": worst_performer,
         "recent_trend": [round(s, 2) for s in recent_trend],
+        "scores_per_category": scores_per_category,
         "compliance_rate": round(compliance_rate, 2),
         "total_coffee_shops": total_coffee_shops,
         "audits_this_month": audits_this_month,
