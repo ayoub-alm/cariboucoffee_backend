@@ -85,6 +85,7 @@ class AuditCategoryBase(BaseModel):
     name: str
     description: Optional[str] = None
     icon: Optional[str] = None
+    display_order: int = 0
 
 class AuditCategoryCreate(AuditCategoryBase):
     pass
@@ -92,8 +93,8 @@ class AuditCategoryCreate(AuditCategoryBase):
 class AuditCategoryResponse(AuditCategoryBase):
     id: int
     total_score: int = 0
+    display_order: int = 0
 
-    
     class Config:
         from_attributes = True
 
@@ -103,17 +104,27 @@ class AuditQuestionBase(BaseModel):
     category_id: Optional[int] = None
     correct_answer: str = "oui"
     na_score: int = 0
-
+    display_order: int = 0
 
 class AuditQuestionCreate(AuditQuestionBase):
     pass
 
 class AuditQuestionResponse(AuditQuestionBase):
     id: int
+    display_order: int = 0
     category: Optional[AuditCategoryResponse] = None
 
     class Config:
         from_attributes = True
+
+
+# --- Reorder Schemas ---
+class ReorderItem(BaseModel):
+    id: int
+    display_order: int
+
+class ReorderRequest(BaseModel):
+    items: List[ReorderItem]
 
 class AuditStatus(str, Enum):
     IN_PROGRESS = "IN_PROGRESS"
@@ -199,3 +210,18 @@ class Token(BaseModel):
 class TokenPayload(BaseModel):
     sub: Optional[int] = None
 
+
+# --- User Rights Schemas ---
+class ModulePermissions(BaseModel):
+    read:   Optional[bool] = None
+    create: Optional[bool] = None
+    update: Optional[bool] = None
+    delete: Optional[bool] = None
+
+
+class UserRightsUpdate(BaseModel):
+    coffees:    Optional[ModulePermissions] = None
+    audits:     Optional[ModulePermissions] = None
+    users:      Optional[ModulePermissions] = None
+    categories: Optional[ModulePermissions] = None
+    questions:  Optional[ModulePermissions] = None

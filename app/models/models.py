@@ -53,6 +53,46 @@ class User(Base):
     managed_coffees = relationship("Coffee", secondary=manager_coffees, back_populates="managers")
     
     audits_created = relationship("Audit", back_populates="auditor")
+    rights = relationship("UserRights", back_populates="user", uselist=False, cascade="all, delete-orphan")
+
+class UserRights(Base):
+    __tablename__ = "user_rights"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=False)
+
+    # Coffees module
+    coffees_read   = Column(Boolean, default=False)
+    coffees_create = Column(Boolean, default=False)
+    coffees_update = Column(Boolean, default=False)
+    coffees_delete = Column(Boolean, default=False)
+
+    # Audits module
+    audits_read   = Column(Boolean, default=False)
+    audits_create = Column(Boolean, default=False)
+    audits_update = Column(Boolean, default=False)
+    audits_delete = Column(Boolean, default=False)
+
+    # Users module
+    users_read   = Column(Boolean, default=False)
+    users_create = Column(Boolean, default=False)
+    users_update = Column(Boolean, default=False)
+    users_delete = Column(Boolean, default=False)
+
+    # Categories module
+    categories_read   = Column(Boolean, default=False)
+    categories_create = Column(Boolean, default=False)
+    categories_update = Column(Boolean, default=False)
+    categories_delete = Column(Boolean, default=False)
+
+    # Questions module
+    questions_read   = Column(Boolean, default=False)
+    questions_create = Column(Boolean, default=False)
+    questions_update = Column(Boolean, default=False)
+    questions_delete = Column(Boolean, default=False)
+
+    user = relationship("User", back_populates="rights")
+
 
 class AuditCategory(Base):
     __tablename__ = "audit_categories"
@@ -61,8 +101,9 @@ class AuditCategory(Base):
     name = Column(String, unique=True)
     description = Column(String, nullable=True)
     icon = Column(String, nullable=True)
+    display_order = Column(Integer, default=0, nullable=False)
     
-    questions = relationship("AuditQuestion", back_populates="category")
+    questions = relationship("AuditQuestion", back_populates="category", order_by="AuditQuestion.display_order")
 
     @property
     def total_score(self) -> int:
@@ -74,15 +115,16 @@ class AuditQuestion(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     text = Column(String)
-    weight = Column(Integer, default=1) # Points awarded for correct answer
+    weight = Column(Integer, default=1)
+    display_order = Column(Integer, default=0, nullable=False)
 
     category_id = Column(Integer, ForeignKey("audit_categories.id"))
     
     category = relationship("AuditCategory", back_populates="questions")
     answers = relationship("AuditAnswer", back_populates="question")
     
-    correct_answer = Column(String, default="oui") # 'oui' or 'non'
-    na_score = Column(Integer, default=0) # Points awarded if N/A
+    correct_answer = Column(String, default="oui")
+    na_score = Column(Integer, default=0)
 
 
 class AuditStatus(str, enum.Enum):

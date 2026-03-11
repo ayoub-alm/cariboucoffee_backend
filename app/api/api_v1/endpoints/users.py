@@ -7,7 +7,7 @@ from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
 from app.api import deps
-from app.models.models import User, UserRole, Coffee
+from app.models.models import User, UserRole, Coffee, UserRights
 from app.schemas import schemas
 from app.core.security import get_password_hash, verify_password
 
@@ -15,6 +15,16 @@ router = APIRouter()
 
 
 def _user_to_response(user: User) -> dict:
+    r = user.rights
+    permissions = None
+    if r:
+        permissions = {
+            "coffees":    {"read": r.coffees_read,    "create": r.coffees_create,    "update": r.coffees_update,    "delete": r.coffees_delete},
+            "audits":     {"read": r.audits_read,     "create": r.audits_create,     "update": r.audits_update,     "delete": r.audits_delete},
+            "users":      {"read": r.users_read,      "create": r.users_create,      "update": r.users_update,      "delete": r.users_delete},
+            "categories": {"read": r.categories_read, "create": r.categories_create, "update": r.categories_update, "delete": r.categories_delete},
+            "questions":  {"read": r.questions_read,  "create": r.questions_create,  "update": r.questions_update,  "delete": r.questions_delete},
+        }
     return {
         "id": user.id,
         "email": user.email,
@@ -26,12 +36,15 @@ def _user_to_response(user: User) -> dict:
         "receive_weekly_report": user.receive_weekly_report,
         "receive_monthly_report": user.receive_monthly_report,
         "managed_coffee_ids": [c.id for c in user.managed_coffees] if user.managed_coffees else [],
+        "permissions": permissions,
     }
 
 
 async def _load_user(db: AsyncSession, user_id: int) -> User | None:
     result = await db.execute(
-        select(User).options(selectinload(User.managed_coffees)).where(User.id == user_id)
+        select(User)
+        .options(selectinload(User.managed_coffees), selectinload(User.rights))
+        .where(User.id == user_id)
     )
     return result.scalars().first()
 
@@ -87,7 +100,10 @@ async def read_users(
     if current_user.role != UserRole.ADMIN:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not enough privileges")
     result = await db.execute(
-        select(User).options(selectinload(User.managed_coffees)).offset(skip).limit(limit)
+        select(User)
+        .options(selectinload(User.managed_coffees), selectinload(User.rights))
+        .offset(skip)
+        .limit(limit)
     )
     users = result.scalars().all()
     return [_user_to_response(u) for u in users]
