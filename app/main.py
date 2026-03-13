@@ -12,6 +12,18 @@ from app.core.security import get_password_hash
 from app.db.seed_data import DEFAULT_ADMIN, DEFAULT_COFFEES, AUDIT_CATEGORIES_DATA
 from sqlalchemy import select
 import os
+import logging
+
+# Setup basic logging to file and console
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[
+        logging.FileHandler("app.log"),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title=settings.PROJECT_NAME)
 

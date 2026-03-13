@@ -4,10 +4,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
+from fastapi.responses import Response
+
 from app.api import deps
 from app.models.models import Audit, AuditAnswer, AuditQuestion, AuditCategory, AuditStatus, User, UserRole
 from app.schemas import schemas
 from app.utils.image_utils import save_base64_image
+from app.utils.pdf_generator import generate_audit_pdf
 
 router = APIRouter()
 
@@ -15,7 +18,7 @@ router = APIRouter()
 async def read_audits(
     db: AsyncSession = Depends(deps.get_db),
     skip: int = 0,
-    limit: int = 100,
+    limit: int = 10000,
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
     """
@@ -207,6 +210,53 @@ async def read_audit(
     
     return audit
 
+@router.get("/{audit_id}/pdf")
+async def download_audit_pdf(
+    *,
+    db: AsyncSession = Depends(deps.get_db),
+    audit_id: int,
+    current_user: User = Depends(deps.get_current_user),
+) -> Response:
+    """
+    Get audit report as PDF.
+    """
+    query = select(Audit).options(
+        selectinload(Audit.coffee),
+        selectinload(Audit.auditor),
+        selectinload(Audit.answers).selectinload(AuditAnswer.question).selectinload(AuditQuestion.category).selectinload(AuditCategory.questions)
+    ).where(Audit.id == audit_id)
+    
+    result = await db.execute(query)
+    audit = result.scalars().first()
+    
+    if not audit:
+        raise HTTPException(status_code=404, detail="Audit not found")
+        
+    if current_user.role in (UserRole.ADMIN, UserRole.BOSS):
+        pass
+    elif current_user.role == UserRole.AUDITOR:
+        if audit.auditor_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Not authorized to view this audit")
+    elif current_user.role == UserRole.MANAGER:
+        managed_ids = [c.id for c in current_user.managed_coffees] if current_user.managed_coffees else []
+        if audit.coffee_id not in managed_ids:
+            raise HTTPException(status_code=403, detail="Not authorized to view this audit")
+    elif current_user.role == UserRole.VIEWER:
+        if audit.coffee_id != current_user.coffee_id:
+            raise HTTPException(status_code=403, detail="Not authorized to view this audit")
+
+    try:
+        pdf_bytes = generate_audit_pdf(audit)
+        
+        filename = f"audit_{audit.coffee.name}_{audit.created_at.strftime('%Y%m%d') if audit.created_at else 'report'}.pdf"
+        headers = {
+            'Content-Disposition': f'attachment; filename="{filename}"'
+        }
+        return Response(content=bytes(pdf_bytes), media_type="application/pdf", headers=headers)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Error generating PDF: {str(e)}")
 
 @router.put("/{id}", response_model=schemas.AuditResponse)
 async def update_audit(
