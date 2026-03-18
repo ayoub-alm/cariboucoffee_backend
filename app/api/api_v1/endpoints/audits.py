@@ -268,7 +268,8 @@ async def update_audit(
 ) -> Any:
     """
     Update an audit.
-    Admin or Auditor (own audit).
+    - Admin can update any audit (including completed ones).
+    - Auditor can only update their own IN_PROGRESS audits.
     """
     query = select(Audit).options(
         selectinload(Audit.coffee),
@@ -285,6 +286,8 @@ async def update_audit(
     elif current_user.role == UserRole.AUDITOR:
         if audit.auditor_id != current_user.id:
             raise HTTPException(status_code=403, detail="Not enough permissions")
+        if audit.status == AuditStatus.COMPLETED:
+            raise HTTPException(status_code=403, detail="Completed audits cannot be modified")
     else:
         raise HTTPException(status_code=403, detail="Not enough permissions")
 
@@ -391,23 +394,16 @@ async def delete_audit(
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
     """
-    Delete an audit.
-    Only Admin can delete? Or Auditor can delete their own?
-    Let's say Admin only for deletion to be safe, or Auditor their own.
+    Delete an audit. Only Admin can delete.
     """
+    if current_user.role != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Only administrators can delete audits")
+
     query = select(Audit).where(Audit.id == id)
     result = await db.execute(query)
     audit = result.scalars().first()
     if not audit:
         raise HTTPException(status_code=404, detail="Audit not found")
-        
-    if current_user.role == UserRole.ADMIN:
-        pass
-    elif current_user.role == UserRole.AUDITOR:
-        if audit.auditor_id != current_user.id:
-            raise HTTPException(status_code=403, detail="Not enough permissions")
-    else:
-        raise HTTPException(status_code=403, detail="Not enough permissions")
 
     await db.delete(audit)
     await db.commit()
