@@ -1,3 +1,4 @@
+import json
 from typing import Any, List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,6 +12,18 @@ from app.models.models import Audit, AuditAnswer, AuditQuestion, AuditCategory, 
 from app.schemas import schemas
 from app.utils.image_utils import save_base64_image
 from app.utils.pdf_generator import generate_audit_pdf
+
+
+def _save_photo_list(photo_data_list: list[str] | None) -> str | None:
+    """Save a list of base64 images and return a JSON array of URLs."""
+    if not photo_data_list:
+        return None
+    urls = []
+    for b64 in photo_data_list:
+        url = save_base64_image(b64)
+        if url:
+            urls.append(url)
+    return json.dumps(urls) if urls else None
 
 router = APIRouter()
 
@@ -74,9 +87,7 @@ async def create_audit(
         # precise calculation of score logic can be added here
         # For now, just sum the values or something simple
         
-        photo_url = None
-        if audit_in.photo_data:
-            photo_url = save_base64_image(audit_in.photo_data)
+        photo_url = _save_photo_list(audit_in.photo_data)
 
         audit = Audit(
             coffee_id=audit_in.coffee_id,
@@ -135,9 +146,7 @@ async def create_audit(
                 # Should not happen due to 'if not question: continue' check, but safe default
                 calculated_value = 0
 
-            photo_url = None
-            if answer.photo_data:
-                 photo_url = save_base64_image(answer.photo_data)
+            answer_photo_url = _save_photo_list(answer.photo_data)
 
             db_answer = AuditAnswer(
                 audit_id=audit.id,
@@ -145,7 +154,7 @@ async def create_audit(
                 value=calculated_value,
                 choice=answer.choice,
                 comment=answer.comment,
-                photo_url=photo_url
+                photo_url=answer_photo_url
             )
             db.add(db_answer)
         
@@ -306,7 +315,7 @@ async def update_audit(
     if audit_in.purchases is not None:
         audit.purchases = audit_in.purchases
     if audit_in.photo_data is not None:
-        photo_url = save_base64_image(audit_in.photo_data)
+        photo_url = _save_photo_list(audit_in.photo_data)
         if photo_url:
             audit.photo_url = photo_url
 
@@ -358,17 +367,13 @@ async def update_audit(
                  calculated_value = 0
 
 
-            answer_photo_url = None
-            if answer.photo_data:
-                answer_photo_url = save_base64_image(answer.photo_data)
-
             db_answer = AuditAnswer(
                 audit_id=audit.id,
                 question_id=answer.question_id,
                 value=calculated_value,
                 choice=answer.choice,
                 comment=answer.comment,
-                photo_url=answer_photo_url
+                photo_url=_save_photo_list(answer.photo_data)
             )
             db.add(db_answer)
         

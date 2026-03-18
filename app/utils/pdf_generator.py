@@ -1,9 +1,20 @@
-from io import BytesIO
+import json
+import os
 from fpdf import FPDF
 from app.models.models import Audit
-from datetime import datetime
 
-import os
+
+def _parse_photo_urls(raw: str | None) -> list[str]:
+    """Parse photo_url field which may be a JSON array or a legacy single path."""
+    if not raw:
+        return []
+    try:
+        parsed = json.loads(raw)
+        if isinstance(parsed, list):
+            return parsed
+    except (json.JSONDecodeError, TypeError):
+        pass
+    return [raw]
 
 class AuditPDF(FPDF):
     def header(self):
@@ -70,22 +81,24 @@ def generate_audit_pdf(audit: Audit) -> bytes:
     pdf.line(10, pdf.get_y(), 200, pdf.get_y())
     pdf.ln(5)
 
-    # General Photo
-    if audit.photo_url:
-        img_path = audit.photo_url
-        if img_path.startswith('/static/'):
-            img_path = "app" + img_path
-        if os.path.exists(img_path):
-            pdf.ln(2)
-            pdf.set_font('Arial', 'B', 12)
-            pdf.set_text_color(50, 50, 50)
-            pdf.cell(0, 8, "Photo Generale de l'Audit:", ln=1)
-            try:
-                # max width 90 to not take full page horizontally
-                pdf.image(img_path, w=90)
-                pdf.ln(5)
-            except Exception as e:
-                print(f"Error loading image {img_path}: {e}")
+    # General Photos
+    photo_urls = _parse_photo_urls(audit.photo_url)
+    if photo_urls:
+        pdf.ln(2)
+        pdf.set_font('Arial', 'B', 12)
+        pdf.set_text_color(50, 50, 50)
+        pdf.cell(0, 8, f"Photo(s) Generale(s) de l'Audit ({len(photo_urls)}):", ln=1)
+        for pu in photo_urls:
+            img_path = pu
+            if img_path.startswith('/static/'):
+                img_path = "app" + img_path
+            if os.path.exists(img_path):
+                try:
+                    pdf.image(img_path, w=90)
+                    pdf.ln(3)
+                except Exception as e:
+                    print(f"Error loading image {img_path}: {e}")
+        pdf.ln(2)
 
     # -------- ANSWERS BY CATEGORY --------
     categories = {}
@@ -144,27 +157,25 @@ def generate_audit_pdf(audit: Audit) -> bytes:
             pdf.set_text_color(100, 100, 100)
             pdf.cell(25, 8, pts_str, border='RTB', align='C', ln=1)
             
-            # Check for Comment and Photo
-            if ans.comment or ans.photo_url:
+            ans_photo_urls = _parse_photo_urls(ans.photo_url)
+            if ans.comment or ans_photo_urls:
                 pdf.set_font('Arial', 'I', 9)
                 pdf.set_text_color(80, 80, 80)
                 
                 if ans.comment:
                     safe_comment = ans.comment.encode('latin-1', 'replace').decode('latin-1')
-                    pdf.cell(10, 6, "") # indent
+                    pdf.cell(10, 6, "")
                     pdf.multi_cell(0, 6, f"Remarque: {safe_comment}", border=0)
                 
-                if ans.photo_url:
-                    img_path = ans.photo_url
+                for apu in ans_photo_urls:
+                    img_path = apu
                     if img_path.startswith('/static/'):
                         img_path = "app" + img_path
                     if os.path.exists(img_path):
-                        # Calculate available space, create page break if needed
                         if pdf.h - pdf.get_y() < 70:
                             pdf.add_page()
                         pdf.ln(2)
                         try:
-                            # Print image with left margin alignment
                             pdf.image(img_path, x=20, w=60)
                             pdf.ln(2)
                         except Exception as e:

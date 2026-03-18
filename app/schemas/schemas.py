@@ -136,7 +136,7 @@ class AuditAnswerBase(BaseModel):
     value: Optional[int] = None
     choice: Optional[str] = None
     comment: Optional[str] = None
-    photo_data: Optional[str] = None # Base64 encoded image
+    photo_data: Optional[List[str]] = None
 
 class AuditAnswerCreate(AuditAnswerBase):
     pass
@@ -157,7 +157,7 @@ class AuditCreate(BaseModel):
     actions_correctives: Optional[str] = None
     training_needs: Optional[str] = None
     purchases: Optional[str] = None
-    photo_data: Optional[str] = None
+    photo_data: Optional[List[str]] = None
     answers: List[AuditAnswerCreate] = []
 
 class AuditUpdate(BaseModel):
@@ -169,7 +169,7 @@ class AuditUpdate(BaseModel):
     actions_correctives: Optional[str] = None
     training_needs: Optional[str] = None
     purchases: Optional[str] = None
-    photo_data: Optional[str] = None
+    photo_data: Optional[List[str]] = None
     answers: Optional[List[AuditAnswerCreate]] = None
 
 class AuditResponse(BaseModel):
