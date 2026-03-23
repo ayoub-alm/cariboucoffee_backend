@@ -413,3 +413,26 @@ async def delete_audit(
     await db.delete(audit)
     await db.commit()
     return audit
+
+@router.post("/bulk-delete")
+async def bulk_delete_audits(
+    *,
+    db: AsyncSession = Depends(deps.get_db),
+    body: schemas.BulkDelete,
+    current_user: User = Depends(deps.get_current_user),
+) -> Any:
+    """
+    Bulk delete audits. Only Admin can delete.
+    """
+    if current_user.role != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Only administrators can delete audits")
+
+    if not body.ids:
+        return {"message": "No ids provided"}
+
+    from sqlalchemy import delete
+    query = delete(Audit).where(Audit.id.in_(body.ids))
+    await db.execute(query)
+    await db.commit()
+    
+    return {"message": f"Successfully deleted {len(body.ids)} audits"}

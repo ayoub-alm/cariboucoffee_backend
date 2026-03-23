@@ -10,6 +10,10 @@ class UserRole(str, Enum):
     BOSS = "BOSS"
     VIEWER = "VIEWER"
 
+# --- Bulk Actions ---
+class BulkDelete(BaseModel):
+    ids: List[int]
+
 # --- User Schemas ---
 class UserBase(BaseModel):
     email: EmailStr

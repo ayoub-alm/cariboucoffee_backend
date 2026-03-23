@@ -3446,3 +3446,476 @@ FROM coffees
  LIMIT $1::INTEGER OFFSET $2::INTEGER
 2026-03-18 14:55:57,216 - sqlalchemy.engine.Engine - INFO - [cached since 507.4s ago] (100, 0)
 2026-03-18 14:55:57,218 - sqlalchemy.engine.Engine - INFO - ROLLBACK
+2026-03-23 01:11:37,279 - sqlalchemy.engine.Engine - INFO - select pg_catalog.version()
+2026-03-23 01:11:37,279 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2026-03-23 01:11:37,280 - sqlalchemy.engine.Engine - INFO - select current_schema()
+2026-03-23 01:11:37,281 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2026-03-23 01:11:37,282 - sqlalchemy.engine.Engine - INFO - show standard_conforming_strings
+2026-03-23 01:11:37,282 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2026-03-23 01:11:37,283 - sqlalchemy.engine.Engine - INFO - BEGIN (implicit)
+2026-03-23 01:11:37,285 - sqlalchemy.engine.Engine - INFO - SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-23 01:11:37,286 - sqlalchemy.engine.Engine - INFO - [generated in 0.00043s] ('manager_coffees', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-23 01:11:37,299 - sqlalchemy.engine.Engine - INFO - SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-23 01:11:37,300 - sqlalchemy.engine.Engine - INFO - [cached since 0.01453s ago] ('coffees', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-23 01:11:37,302 - sqlalchemy.engine.Engine - INFO - SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-23 01:11:37,302 - sqlalchemy.engine.Engine - INFO - [cached since 0.01705s ago] ('users', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-23 01:11:37,303 - sqlalchemy.engine.Engine - INFO - SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-23 01:11:37,307 - sqlalchemy.engine.Engine - INFO - [cached since 0.02219s ago] ('user_rights', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-23 01:11:37,311 - sqlalchemy.engine.Engine - INFO - SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-23 01:11:37,311 - sqlalchemy.engine.Engine - INFO - [cached since 0.02583s ago] ('audit_categories', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-23 01:11:37,312 - sqlalchemy.engine.Engine - INFO - SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-23 01:11:37,312 - sqlalchemy.engine.Engine - INFO - [cached since 0.02725s ago] ('audit_questions', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-23 01:11:37,313 - sqlalchemy.engine.Engine - INFO - SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-23 01:11:37,314 - sqlalchemy.engine.Engine - INFO - [cached since 0.02907s ago] ('audits', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-23 01:11:37,315 - sqlalchemy.engine.Engine - INFO - SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-23 01:11:37,315 - sqlalchemy.engine.Engine - INFO - [cached since 0.03034s ago] ('audit_answers', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-23 01:11:37,317 - sqlalchemy.engine.Engine - INFO - SELECT pg_catalog.pg_type.typname 
+FROM pg_catalog.pg_type JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_type.typnamespace 
+WHERE pg_catalog.pg_type.typname = $1::VARCHAR AND pg_catalog.pg_type_is_visible(pg_catalog.pg_type.oid) AND pg_catalog.pg_namespace.nspname != $2::VARCHAR
+2026-03-23 01:11:37,318 - sqlalchemy.engine.Engine - INFO - [generated in 0.00043s] ('userrole', 'pg_catalog')
+2026-03-23 01:11:37,323 - sqlalchemy.engine.Engine - INFO - SELECT pg_catalog.pg_type.typname 
+FROM pg_catalog.pg_type JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_type.typnamespace 
+WHERE pg_catalog.pg_type.typname = $1::VARCHAR AND pg_catalog.pg_type_is_visible(pg_catalog.pg_type.oid) AND pg_catalog.pg_namespace.nspname != $2::VARCHAR
+2026-03-23 01:11:37,324 - sqlalchemy.engine.Engine - INFO - [cached since 0.006553s ago] ('auditstatus', 'pg_catalog')
+2026-03-23 01:11:37,325 - sqlalchemy.engine.Engine - INFO - COMMIT
+2026-03-23 01:11:37,326 - sqlalchemy.engine.Engine - INFO - BEGIN (implicit)
+2026-03-23 01:11:37,338 - sqlalchemy.engine.Engine - INFO - SELECT users.id, users.email, users.hashed_password, users.full_name, users.is_active, users.role, users.receive_daily_report, users.receive_weekly_report, users.receive_monthly_report, users.coffee_id 
+FROM users 
+WHERE users.role = $1::userrole
+2026-03-23 01:11:37,338 - sqlalchemy.engine.Engine - INFO - [generated in 0.00053s] ('ADMIN',)
+2026-03-23 01:11:37,616 - sqlalchemy.engine.Engine - INFO - SELECT coffees.id, coffees.ref, coffees.name, coffees.location, coffees.active 
+FROM coffees
+2026-03-23 01:11:37,616 - sqlalchemy.engine.Engine - INFO - [generated in 0.00042s] ()
+2026-03-23 01:11:37,662 - sqlalchemy.engine.Engine - INFO - SELECT audit_categories.id, audit_categories.name, audit_categories.description, audit_categories.icon, audit_categories.display_order 
+FROM audit_categories
+2026-03-23 01:11:37,663 - sqlalchemy.engine.Engine - INFO - [generated in 0.00051s] ()
+2026-03-23 01:11:37,701 - sqlalchemy.engine.Engine - INFO - ROLLBACK
+2026-03-23 01:11:37,702 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-23 01:11:37,703 - apscheduler.scheduler - INFO - Added job "send_weekly_report" to job store "default"
+2026-03-23 01:11:37,704 - apscheduler.scheduler - INFO - Scheduler started
+2026-03-23 01:11:46,680 - sqlalchemy.engine.Engine - INFO - select pg_catalog.version()
+2026-03-23 01:11:46,681 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2026-03-23 01:11:46,682 - sqlalchemy.engine.Engine - INFO - select current_schema()
+2026-03-23 01:11:46,682 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2026-03-23 01:11:46,683 - sqlalchemy.engine.Engine - INFO - show standard_conforming_strings
+2026-03-23 01:11:46,683 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2026-03-23 01:11:46,684 - sqlalchemy.engine.Engine - INFO - BEGIN (implicit)
+2026-03-23 01:11:46,686 - sqlalchemy.engine.Engine - INFO - SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-23 01:11:46,687 - sqlalchemy.engine.Engine - INFO - [generated in 0.00040s] ('manager_coffees', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-23 01:11:46,692 - sqlalchemy.engine.Engine - INFO - SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-23 01:11:46,692 - sqlalchemy.engine.Engine - INFO - [cached since 0.006146s ago] ('coffees', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-23 01:11:46,693 - sqlalchemy.engine.Engine - INFO - SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-23 01:11:46,693 - sqlalchemy.engine.Engine - INFO - [cached since 0.006959s ago] ('users', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-23 01:11:46,694 - sqlalchemy.engine.Engine - INFO - SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-23 01:11:46,694 - sqlalchemy.engine.Engine - INFO - [cached since 0.007756s ago] ('user_rights', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-23 01:11:46,694 - sqlalchemy.engine.Engine - INFO - SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-23 01:11:46,695 - sqlalchemy.engine.Engine - INFO - [cached since 0.008575s ago] ('audit_categories', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-23 01:11:46,695 - sqlalchemy.engine.Engine - INFO - SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-23 01:11:46,695 - sqlalchemy.engine.Engine - INFO - [cached since 0.009269s ago] ('audit_questions', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-23 01:11:46,696 - sqlalchemy.engine.Engine - INFO - SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-23 01:11:46,696 - sqlalchemy.engine.Engine - INFO - [cached since 0.01002s ago] ('audits', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-23 01:11:46,697 - sqlalchemy.engine.Engine - INFO - SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-23 01:11:46,697 - sqlalchemy.engine.Engine - INFO - [cached since 0.01062s ago] ('audit_answers', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-23 01:11:46,698 - sqlalchemy.engine.Engine - INFO - SELECT pg_catalog.pg_type.typname 
+FROM pg_catalog.pg_type JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_type.typnamespace 
+WHERE pg_catalog.pg_type.typname = $1::VARCHAR AND pg_catalog.pg_type_is_visible(pg_catalog.pg_type.oid) AND pg_catalog.pg_namespace.nspname != $2::VARCHAR
+2026-03-23 01:11:46,702 - sqlalchemy.engine.Engine - INFO - [generated in 0.00384s] ('userrole', 'pg_catalog')
+2026-03-23 01:11:46,709 - sqlalchemy.engine.Engine - INFO - SELECT pg_catalog.pg_type.typname 
+FROM pg_catalog.pg_type JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_type.typnamespace 
+WHERE pg_catalog.pg_type.typname = $1::VARCHAR AND pg_catalog.pg_type_is_visible(pg_catalog.pg_type.oid) AND pg_catalog.pg_namespace.nspname != $2::VARCHAR
+2026-03-23 01:11:46,709 - sqlalchemy.engine.Engine - INFO - [cached since 0.01133s ago] ('auditstatus', 'pg_catalog')
+2026-03-23 01:11:46,711 - sqlalchemy.engine.Engine - INFO - COMMIT
+2026-03-23 01:11:46,712 - sqlalchemy.engine.Engine - INFO - BEGIN (implicit)
+2026-03-23 01:11:46,723 - sqlalchemy.engine.Engine - INFO - SELECT users.id, users.email, users.hashed_password, users.full_name, users.is_active, users.role, users.receive_daily_report, users.receive_weekly_report, users.receive_monthly_report, users.coffee_id 
+FROM users 
+WHERE users.role = $1::userrole
+2026-03-23 01:11:46,723 - sqlalchemy.engine.Engine - INFO - [generated in 0.00031s] ('ADMIN',)
+2026-03-23 01:11:46,738 - sqlalchemy.engine.Engine - INFO - SELECT coffees.id, coffees.ref, coffees.name, coffees.location, coffees.active 
+FROM coffees
+2026-03-23 01:11:46,739 - sqlalchemy.engine.Engine - INFO - [generated in 0.00027s] ()
+2026-03-23 01:11:46,744 - sqlalchemy.engine.Engine - INFO - SELECT audit_categories.id, audit_categories.name, audit_categories.description, audit_categories.icon, audit_categories.display_order 
+FROM audit_categories
+2026-03-23 01:11:46,744 - sqlalchemy.engine.Engine - INFO - [generated in 0.00033s] ()
+2026-03-23 01:11:46,748 - sqlalchemy.engine.Engine - INFO - ROLLBACK
+2026-03-23 01:11:46,748 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-23 01:11:46,749 - apscheduler.scheduler - INFO - Added job "send_weekly_report" to job store "default"
+2026-03-23 01:11:46,749 - apscheduler.scheduler - INFO - Scheduler started
+2026-03-23 01:12:59,027 - sqlalchemy.engine.Engine - INFO - BEGIN (implicit)
+2026-03-23 01:12:59,029 - sqlalchemy.engine.Engine - INFO - SELECT users.id, users.email, users.hashed_password, users.full_name, users.is_active, users.role, users.receive_daily_report, users.receive_weekly_report, users.receive_monthly_report, users.coffee_id 
+FROM users 
+WHERE users.email = $1::VARCHAR
+2026-03-23 01:12:59,033 - sqlalchemy.engine.Engine - INFO - [generated in 0.00336s] ('admin@caribou.ma',)
+2026-03-23 01:12:59,222 - sqlalchemy.engine.Engine - INFO - ROLLBACK
+2026-03-23 01:12:59,230 - sqlalchemy.engine.Engine - INFO - BEGIN (implicit)
+2026-03-23 01:12:59,233 - sqlalchemy.engine.Engine - INFO - SELECT users.id, users.email, users.hashed_password, users.full_name, users.is_active, users.role, users.receive_daily_report, users.receive_weekly_report, users.receive_monthly_report, users.coffee_id 
+FROM users 
+WHERE users.id = $1::INTEGER
+2026-03-23 01:12:59,233 - sqlalchemy.engine.Engine - INFO - [generated in 0.00081s] (1,)
+2026-03-23 01:12:59,237 - sqlalchemy.engine.Engine - INFO - SELECT users_1.id AS users_1_id, coffees.id AS coffees_id, coffees.ref AS coffees_ref, coffees.name AS coffees_name, coffees.location AS coffees_location, coffees.active AS coffees_active 
+FROM users AS users_1 JOIN manager_coffees AS manager_coffees_1 ON users_1.id = manager_coffees_1.user_id JOIN coffees ON coffees.id = manager_coffees_1.coffee_id 
+WHERE users_1.id IN ($1::INTEGER)
+2026-03-23 01:12:59,238 - sqlalchemy.engine.Engine - INFO - [generated in 0.00045s] (1,)
+2026-03-23 01:12:59,304 - sqlalchemy.engine.Engine - INFO - SELECT users.id, users.email, users.hashed_password, users.full_name, users.is_active, users.role, users.receive_daily_report, users.receive_weekly_report, users.receive_monthly_report, users.coffee_id 
+FROM users 
+WHERE users.id = $1::INTEGER
+2026-03-23 01:12:59,306 - sqlalchemy.engine.Engine - INFO - [generated in 0.00176s] (1,)
+2026-03-23 01:12:59,324 - sqlalchemy.engine.Engine - INFO - SELECT user_rights.user_id AS user_rights_user_id, user_rights.id AS user_rights_id, user_rights.coffees_read AS user_rights_coffees_read, user_rights.coffees_create AS user_rights_coffees_create, user_rights.coffees_update AS user_rights_coffees_update, user_rights.coffees_delete AS user_rights_coffees_delete, user_rights.audits_read AS user_rights_audits_read, user_rights.audits_create AS user_rights_audits_create, user_rights.audits_update AS user_rights_audits_update, user_rights.audits_delete AS user_rights_audits_delete, user_rights.users_read AS user_rights_users_read, user_rights.users_create AS user_rights_users_create, user_rights.users_update AS user_rights_users_update, user_rights.users_delete AS user_rights_users_delete, user_rights.categories_read AS user_rights_categories_read, user_rights.categories_create AS user_rights_categories_create, user_rights.categories_update AS user_rights_categories_update, user_rights.categories_delete AS user_rights_categories_delete, user_rights.questions_read AS user_rights_questions_read, user_rights.questions_create AS user_rights_questions_create, user_rights.questions_update AS user_rights_questions_update, user_rights.questions_delete AS user_rights_questions_delete 
+FROM user_rights 
+WHERE user_rights.user_id IN ($1::INTEGER)
+2026-03-23 01:12:59,325 - sqlalchemy.engine.Engine - INFO - [generated in 0.00128s] (1,)
+2026-03-23 01:12:59,407 - sqlalchemy.engine.Engine - INFO - SELECT users_1.id AS users_1_id, coffees.id AS coffees_id, coffees.ref AS coffees_ref, coffees.name AS coffees_name, coffees.location AS coffees_location, coffees.active AS coffees_active 
+FROM users AS users_1 JOIN manager_coffees AS manager_coffees_1 ON users_1.id = manager_coffees_1.user_id JOIN coffees ON coffees.id = manager_coffees_1.coffee_id 
+WHERE users_1.id IN ($1::INTEGER)
+2026-03-23 01:12:59,410 - sqlalchemy.engine.Engine - INFO - [generated in 0.00217s] (1,)
+2026-03-23 01:12:59,412 - sqlalchemy.engine.Engine - INFO - ROLLBACK
+2026-03-23 01:12:59,566 - sqlalchemy.engine.Engine - INFO - BEGIN (implicit)
+2026-03-23 01:12:59,566 - sqlalchemy.engine.Engine - INFO - SELECT users.id, users.email, users.hashed_password, users.full_name, users.is_active, users.role, users.receive_daily_report, users.receive_weekly_report, users.receive_monthly_report, users.coffee_id 
+FROM users 
+WHERE users.id = $1::INTEGER
+2026-03-23 01:12:59,567 - sqlalchemy.engine.Engine - INFO - [cached since 0.3343s ago] (1,)
+2026-03-23 01:12:59,569 - sqlalchemy.engine.Engine - INFO - SELECT users_1.id AS users_1_id, coffees.id AS coffees_id, coffees.ref AS coffees_ref, coffees.name AS coffees_name, coffees.location AS coffees_location, coffees.active AS coffees_active 
+FROM users AS users_1 JOIN manager_coffees AS manager_coffees_1 ON users_1.id = manager_coffees_1.user_id JOIN coffees ON coffees.id = manager_coffees_1.coffee_id 
+WHERE users_1.id IN ($1::INTEGER)
+2026-03-23 01:12:59,569 - sqlalchemy.engine.Engine - INFO - [cached since 0.3318s ago] (1,)
+2026-03-23 01:12:59,572 - sqlalchemy.engine.Engine - INFO - SELECT audits.id, audits.created_at, audits.updated_at, audits.score, audits.status, audits.coffee_id, audits.auditor_id, audits.shift, audits.staff_present, audits.actions_correctives, audits.training_needs, audits.purchases, audits.photo_url 
+FROM audits 
+ LIMIT $1::INTEGER OFFSET $2::INTEGER
+2026-03-23 01:12:59,572 - sqlalchemy.engine.Engine - INFO - [generated in 0.00039s] (10000, 0)
+2026-03-23 01:12:59,579 - sqlalchemy.engine.Engine - INFO - SELECT users.id AS users_id, users.email AS users_email, users.hashed_password AS users_hashed_password, users.full_name AS users_full_name, users.is_active AS users_is_active, users.role AS users_role, users.receive_daily_report AS users_receive_daily_report, users.receive_weekly_report AS users_receive_weekly_report, users.receive_monthly_report AS users_receive_monthly_report, users.coffee_id AS users_coffee_id 
+FROM users 
+WHERE users.id IN ($1::INTEGER, $2::INTEGER, $3::INTEGER)
+2026-03-23 01:12:59,580 - sqlalchemy.engine.Engine - INFO - [generated in 0.00044s] (1, 3, 5)
+2026-03-23 01:12:59,582 - sqlalchemy.engine.Engine - INFO - SELECT audit_answers.audit_id AS audit_answers_audit_id, audit_answers.id AS audit_answers_id, audit_answers.value AS audit_answers_value, audit_answers.choice AS audit_answers_choice, audit_answers.comment AS audit_answers_comment, audit_answers.photo_url AS audit_answers_photo_url, audit_answers.question_id AS audit_answers_question_id 
+FROM audit_answers 
+WHERE audit_answers.audit_id IN ($1::INTEGER, $2::INTEGER, $3::INTEGER, $4::INTEGER, $5::INTEGER, $6::INTEGER, $7::INTEGER, $8::INTEGER, $9::INTEGER, $10::INTEGER)
+2026-03-23 01:12:59,583 - sqlalchemy.engine.Engine - INFO - [generated in 0.00072s] (2, 3, 4, 5, 6, 8, 7, 9, 1, 10)
+2026-03-23 01:12:59,594 - sqlalchemy.engine.Engine - INFO - SELECT coffees.id AS coffees_id, coffees.ref AS coffees_ref, coffees.name AS coffees_name, coffees.location AS coffees_location, coffees.active AS coffees_active 
+FROM coffees 
+WHERE coffees.id IN ($1::INTEGER, $2::INTEGER, $3::INTEGER, $4::INTEGER, $5::INTEGER)
+2026-03-23 01:12:59,594 - sqlalchemy.engine.Engine - INFO - [generated in 0.00064s] (1, 2, 3, 4, 5)
+2026-03-23 01:12:59,597 - sqlalchemy.engine.Engine - INFO - SELECT audit_questions.id AS audit_questions_id, audit_questions.text AS audit_questions_text, audit_questions.weight AS audit_questions_weight, audit_questions.display_order AS audit_questions_display_order, audit_questions.category_id AS audit_questions_category_id, audit_questions.correct_answer AS audit_questions_correct_answer, audit_questions.na_score AS audit_questions_na_score 
+FROM audit_questions 
+WHERE audit_questions.id IN ($1::INTEGER, $2::INTEGER, $3::INTEGER, $4::INTEGER, $5::INTEGER, $6::INTEGER, $7::INTEGER, $8::INTEGER, $9::INTEGER, $10::INTEGER, $11::INTEGER, $12::INTEGER, $13::INTEGER, $14::INTEGER, $15::INTEGER, $16::INTEGER, $17::INTEGER, $18::INTEGER, $19::INTEGER, $20::INTEGER, $21::INTEGER, $22::INTEGER, $23::INTEGER, $24::INTEGER, $25::INTEGER)
+2026-03-23 01:12:59,597 - sqlalchemy.engine.Engine - INFO - [generated in 0.00066s] (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25)
+2026-03-23 01:12:59,626 - sqlalchemy.engine.Engine - INFO - SELECT audit_categories.id AS audit_categories_id, audit_categories.name AS audit_categories_name, audit_categories.description AS audit_categories_description, audit_categories.icon AS audit_categories_icon, audit_categories.display_order AS audit_categories_display_order 
+FROM audit_categories 
+WHERE audit_categories.id IN ($1::INTEGER, $2::INTEGER, $3::INTEGER, $4::INTEGER)
+2026-03-23 01:12:59,626 - sqlalchemy.engine.Engine - INFO - [generated in 0.00057s] (1, 2, 3, 4)
+2026-03-23 01:12:59,628 - sqlalchemy.engine.Engine - INFO - SELECT audit_questions.category_id AS audit_questions_category_id, audit_questions.id AS audit_questions_id, audit_questions.text AS audit_questions_text, audit_questions.weight AS audit_questions_weight, audit_questions.display_order AS audit_questions_display_order, audit_questions.correct_answer AS audit_questions_correct_answer, audit_questions.na_score AS audit_questions_na_score 
+FROM audit_questions 
+WHERE audit_questions.category_id IN ($1::INTEGER, $2::INTEGER, $3::INTEGER, $4::INTEGER) ORDER BY audit_questions.display_order
+2026-03-23 01:12:59,629 - sqlalchemy.engine.Engine - INFO - [generated in 0.00043s] (1, 2, 3, 4)
+2026-03-23 01:12:59,640 - sqlalchemy.engine.Engine - INFO - ROLLBACK
+2026-03-23 01:12:59,643 - sqlalchemy.engine.Engine - INFO - BEGIN (implicit)
+2026-03-23 01:12:59,644 - sqlalchemy.engine.Engine - INFO - SELECT users.id, users.email, users.hashed_password, users.full_name, users.is_active, users.role, users.receive_daily_report, users.receive_weekly_report, users.receive_monthly_report, users.coffee_id 
+FROM users 
+WHERE users.id = $1::INTEGER
+2026-03-23 01:12:59,645 - sqlalchemy.engine.Engine - INFO - [cached since 0.412s ago] (1,)
+2026-03-23 01:12:59,646 - sqlalchemy.engine.Engine - INFO - SELECT users_1.id AS users_1_id, coffees.id AS coffees_id, coffees.ref AS coffees_ref, coffees.name AS coffees_name, coffees.location AS coffees_location, coffees.active AS coffees_active 
+FROM users AS users_1 JOIN manager_coffees AS manager_coffees_1 ON users_1.id = manager_coffees_1.user_id JOIN coffees ON coffees.id = manager_coffees_1.coffee_id 
+WHERE users_1.id IN ($1::INTEGER)
+2026-03-23 01:12:59,646 - sqlalchemy.engine.Engine - INFO - [cached since 0.4093s ago] (1,)
+2026-03-23 01:12:59,648 - sqlalchemy.engine.Engine - INFO - SELECT audit_categories.id, audit_categories.name, audit_categories.description, audit_categories.icon, audit_categories.display_order 
+FROM audit_categories ORDER BY audit_categories.display_order 
+ LIMIT $1::INTEGER OFFSET $2::INTEGER
+2026-03-23 01:12:59,648 - sqlalchemy.engine.Engine - INFO - [generated in 0.00045s] (100, 0)
+2026-03-23 01:12:59,650 - sqlalchemy.engine.Engine - INFO - SELECT audit_questions.category_id AS audit_questions_category_id, audit_questions.id AS audit_questions_id, audit_questions.text AS audit_questions_text, audit_questions.weight AS audit_questions_weight, audit_questions.display_order AS audit_questions_display_order, audit_questions.correct_answer AS audit_questions_correct_answer, audit_questions.na_score AS audit_questions_na_score 
+FROM audit_questions 
+WHERE audit_questions.category_id IN ($1::INTEGER, $2::INTEGER, $3::INTEGER, $4::INTEGER) ORDER BY audit_questions.display_order
+2026-03-23 01:12:59,650 - sqlalchemy.engine.Engine - INFO - [generated in 0.00033s] (3, 2, 4, 1)
+2026-03-23 01:12:59,651 - sqlalchemy.engine.Engine - INFO - ROLLBACK
+2026-03-23 01:12:59,697 - sqlalchemy.engine.Engine - INFO - BEGIN (implicit)
+2026-03-23 01:12:59,697 - sqlalchemy.engine.Engine - INFO - SELECT users.id, users.email, users.hashed_password, users.full_name, users.is_active, users.role, users.receive_daily_report, users.receive_weekly_report, users.receive_monthly_report, users.coffee_id 
+FROM users 
+WHERE users.id = $1::INTEGER
+2026-03-23 01:12:59,698 - sqlalchemy.engine.Engine - INFO - [cached since 0.4653s ago] (1,)
+2026-03-23 01:12:59,700 - sqlalchemy.engine.Engine - INFO - SELECT users_1.id AS users_1_id, coffees.id AS coffees_id, coffees.ref AS coffees_ref, coffees.name AS coffees_name, coffees.location AS coffees_location, coffees.active AS coffees_active 
+FROM users AS users_1 JOIN manager_coffees AS manager_coffees_1 ON users_1.id = manager_coffees_1.user_id JOIN coffees ON coffees.id = manager_coffees_1.coffee_id 
+WHERE users_1.id IN ($1::INTEGER)
+2026-03-23 01:12:59,701 - sqlalchemy.engine.Engine - INFO - [cached since 0.4634s ago] (1,)
+2026-03-23 01:12:59,702 - sqlalchemy.engine.Engine - INFO - SELECT audits.id, audits.created_at, audits.updated_at, audits.score, audits.status, audits.coffee_id, audits.auditor_id, audits.shift, audits.staff_present, audits.actions_correctives, audits.training_needs, audits.purchases, audits.photo_url 
+FROM audits 
+ LIMIT $1::INTEGER OFFSET $2::INTEGER
+2026-03-23 01:12:59,703 - sqlalchemy.engine.Engine - INFO - [cached since 0.1313s ago] (10000, 0)
+2026-03-23 01:12:59,704 - sqlalchemy.engine.Engine - INFO - SELECT users.id AS users_id, users.email AS users_email, users.hashed_password AS users_hashed_password, users.full_name AS users_full_name, users.is_active AS users_is_active, users.role AS users_role, users.receive_daily_report AS users_receive_daily_report, users.receive_weekly_report AS users_receive_weekly_report, users.receive_monthly_report AS users_receive_monthly_report, users.coffee_id AS users_coffee_id 
+FROM users 
+WHERE users.id IN ($1::INTEGER, $2::INTEGER, $3::INTEGER)
+2026-03-23 01:12:59,704 - sqlalchemy.engine.Engine - INFO - [cached since 0.1248s ago] (1, 3, 5)
+2026-03-23 01:12:59,706 - sqlalchemy.engine.Engine - INFO - SELECT audit_answers.audit_id AS audit_answers_audit_id, audit_answers.id AS audit_answers_id, audit_answers.value AS audit_answers_value, audit_answers.choice AS audit_answers_choice, audit_answers.comment AS audit_answers_comment, audit_answers.photo_url AS audit_answers_photo_url, audit_answers.question_id AS audit_answers_question_id 
+FROM audit_answers 
+WHERE audit_answers.audit_id IN ($1::INTEGER, $2::INTEGER, $3::INTEGER, $4::INTEGER, $5::INTEGER, $6::INTEGER, $7::INTEGER, $8::INTEGER, $9::INTEGER, $10::INTEGER)
+2026-03-23 01:12:59,706 - sqlalchemy.engine.Engine - INFO - [cached since 0.1241s ago] (2, 3, 4, 5, 6, 8, 7, 9, 1, 10)
+2026-03-23 01:12:59,709 - sqlalchemy.engine.Engine - INFO - SELECT coffees.id AS coffees_id, coffees.ref AS coffees_ref, coffees.name AS coffees_name, coffees.location AS coffees_location, coffees.active AS coffees_active 
+FROM coffees 
+WHERE coffees.id IN ($1::INTEGER, $2::INTEGER, $3::INTEGER, $4::INTEGER, $5::INTEGER)
+2026-03-23 01:12:59,709 - sqlalchemy.engine.Engine - INFO - [cached since 0.1154s ago] (1, 2, 3, 4, 5)
+2026-03-23 01:12:59,710 - sqlalchemy.engine.Engine - INFO - SELECT audit_questions.id AS audit_questions_id, audit_questions.text AS audit_questions_text, audit_questions.weight AS audit_questions_weight, audit_questions.display_order AS audit_questions_display_order, audit_questions.category_id AS audit_questions_category_id, audit_questions.correct_answer AS audit_questions_correct_answer, audit_questions.na_score AS audit_questions_na_score 
+FROM audit_questions 
+WHERE audit_questions.id IN ($1::INTEGER, $2::INTEGER, $3::INTEGER, $4::INTEGER, $5::INTEGER, $6::INTEGER, $7::INTEGER, $8::INTEGER, $9::INTEGER, $10::INTEGER, $11::INTEGER, $12::INTEGER, $13::INTEGER, $14::INTEGER, $15::INTEGER, $16::INTEGER, $17::INTEGER, $18::INTEGER, $19::INTEGER, $20::INTEGER, $21::INTEGER, $22::INTEGER, $23::INTEGER, $24::INTEGER, $25::INTEGER)
+2026-03-23 01:12:59,710 - sqlalchemy.engine.Engine - INFO - [cached since 0.1137s ago] (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25)
+2026-03-23 01:12:59,712 - sqlalchemy.engine.Engine - INFO - SELECT audit_categories.id AS audit_categories_id, audit_categories.name AS audit_categories_name, audit_categories.description AS audit_categories_description, audit_categories.icon AS audit_categories_icon, audit_categories.display_order AS audit_categories_display_order 
+FROM audit_categories 
+WHERE audit_categories.id IN ($1::INTEGER, $2::INTEGER, $3::INTEGER, $4::INTEGER)
+2026-03-23 01:12:59,713 - sqlalchemy.engine.Engine - INFO - [cached since 0.0874s ago] (1, 2, 3, 4)
+2026-03-23 01:12:59,714 - sqlalchemy.engine.Engine - INFO - SELECT audit_questions.category_id AS audit_questions_category_id, audit_questions.id AS audit_questions_id, audit_questions.text AS audit_questions_text, audit_questions.weight AS audit_questions_weight, audit_questions.display_order AS audit_questions_display_order, audit_questions.correct_answer AS audit_questions_correct_answer, audit_questions.na_score AS audit_questions_na_score 
+FROM audit_questions 
+WHERE audit_questions.category_id IN ($1::INTEGER, $2::INTEGER, $3::INTEGER, $4::INTEGER) ORDER BY audit_questions.display_order
+2026-03-23 01:12:59,715 - sqlalchemy.engine.Engine - INFO - [cached since 0.08637s ago] (1, 2, 3, 4)
+2026-03-23 01:12:59,720 - sqlalchemy.engine.Engine - INFO - ROLLBACK
+2026-03-23 01:13:03,533 - sqlalchemy.engine.Engine - INFO - BEGIN (implicit)
+2026-03-23 01:13:03,534 - sqlalchemy.engine.Engine - INFO - SELECT coffees.id, coffees.ref, coffees.name, coffees.location, coffees.active 
+FROM coffees 
+ LIMIT $1::INTEGER OFFSET $2::INTEGER
+2026-03-23 01:13:03,534 - sqlalchemy.engine.Engine - INFO - [generated in 0.00035s] (100, 0)
+2026-03-23 01:13:03,537 - sqlalchemy.engine.Engine - INFO - ROLLBACK
+2026-03-23 01:13:04,419 - sqlalchemy.engine.Engine - INFO - BEGIN (implicit)
+2026-03-23 01:13:04,420 - sqlalchemy.engine.Engine - INFO - SELECT users.id, users.email, users.hashed_password, users.full_name, users.is_active, users.role, users.receive_daily_report, users.receive_weekly_report, users.receive_monthly_report, users.coffee_id 
+FROM users 
+WHERE users.id = $1::INTEGER
+2026-03-23 01:13:04,423 - sqlalchemy.engine.Engine - INFO - [cached since 5.191s ago] (1,)
+2026-03-23 01:13:04,426 - sqlalchemy.engine.Engine - INFO - SELECT users_1.id AS users_1_id, coffees.id AS coffees_id, coffees.ref AS coffees_ref, coffees.name AS coffees_name, coffees.location AS coffees_location, coffees.active AS coffees_active 
+FROM users AS users_1 JOIN manager_coffees AS manager_coffees_1 ON users_1.id = manager_coffees_1.user_id JOIN coffees ON coffees.id = manager_coffees_1.coffee_id 
+WHERE users_1.id IN ($1::INTEGER)
+2026-03-23 01:13:04,426 - sqlalchemy.engine.Engine - INFO - [cached since 5.189s ago] (1,)
+2026-03-23 01:13:04,429 - sqlalchemy.engine.Engine - INFO - SELECT audits.id, audits.created_at, audits.updated_at, audits.score, audits.status, audits.coffee_id, audits.auditor_id, audits.shift, audits.staff_present, audits.actions_correctives, audits.training_needs, audits.purchases, audits.photo_url 
+FROM audits 
+ LIMIT $1::INTEGER OFFSET $2::INTEGER
+2026-03-23 01:13:04,429 - sqlalchemy.engine.Engine - INFO - [cached since 4.858s ago] (10000, 0)
+2026-03-23 01:13:04,431 - sqlalchemy.engine.Engine - INFO - SELECT users.id AS users_id, users.email AS users_email, users.hashed_password AS users_hashed_password, users.full_name AS users_full_name, users.is_active AS users_is_active, users.role AS users_role, users.receive_daily_report AS users_receive_daily_report, users.receive_weekly_report AS users_receive_weekly_report, users.receive_monthly_report AS users_receive_monthly_report, users.coffee_id AS users_coffee_id 
+FROM users 
+WHERE users.id IN ($1::INTEGER, $2::INTEGER, $3::INTEGER)
+2026-03-23 01:13:04,431 - sqlalchemy.engine.Engine - INFO - [cached since 4.851s ago] (1, 3, 5)
+2026-03-23 01:13:04,432 - sqlalchemy.engine.Engine - INFO - SELECT audit_answers.audit_id AS audit_answers_audit_id, audit_answers.id AS audit_answers_id, audit_answers.value AS audit_answers_value, audit_answers.choice AS audit_answers_choice, audit_answers.comment AS audit_answers_comment, audit_answers.photo_url AS audit_answers_photo_url, audit_answers.question_id AS audit_answers_question_id 
+FROM audit_answers 
+WHERE audit_answers.audit_id IN ($1::INTEGER, $2::INTEGER, $3::INTEGER, $4::INTEGER, $5::INTEGER, $6::INTEGER, $7::INTEGER, $8::INTEGER, $9::INTEGER, $10::INTEGER)
+2026-03-23 01:13:04,433 - sqlalchemy.engine.Engine - INFO - [cached since 4.851s ago] (2, 3, 4, 5, 6, 8, 7, 9, 1, 10)
+2026-03-23 01:13:04,436 - sqlalchemy.engine.Engine - INFO - SELECT coffees.id AS coffees_id, coffees.ref AS coffees_ref, coffees.name AS coffees_name, coffees.location AS coffees_location, coffees.active AS coffees_active 
+FROM coffees 
+WHERE coffees.id IN ($1::INTEGER, $2::INTEGER, $3::INTEGER, $4::INTEGER, $5::INTEGER)
+2026-03-23 01:13:04,437 - sqlalchemy.engine.Engine - INFO - [cached since 4.843s ago] (1, 2, 3, 4, 5)
+2026-03-23 01:13:04,438 - sqlalchemy.engine.Engine - INFO - SELECT audit_questions.id AS audit_questions_id, audit_questions.text AS audit_questions_text, audit_questions.weight AS audit_questions_weight, audit_questions.display_order AS audit_questions_display_order, audit_questions.category_id AS audit_questions_category_id, audit_questions.correct_answer AS audit_questions_correct_answer, audit_questions.na_score AS audit_questions_na_score 
+FROM audit_questions 
+WHERE audit_questions.id IN ($1::INTEGER, $2::INTEGER, $3::INTEGER, $4::INTEGER, $5::INTEGER, $6::INTEGER, $7::INTEGER, $8::INTEGER, $9::INTEGER, $10::INTEGER, $11::INTEGER, $12::INTEGER, $13::INTEGER, $14::INTEGER, $15::INTEGER, $16::INTEGER, $17::INTEGER, $18::INTEGER, $19::INTEGER, $20::INTEGER, $21::INTEGER, $22::INTEGER, $23::INTEGER, $24::INTEGER, $25::INTEGER)
+2026-03-23 01:13:04,440 - sqlalchemy.engine.Engine - INFO - [cached since 4.843s ago] (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25)
+2026-03-23 01:13:04,442 - sqlalchemy.engine.Engine - INFO - SELECT audit_categories.id AS audit_categories_id, audit_categories.name AS audit_categories_name, audit_categories.description AS audit_categories_description, audit_categories.icon AS audit_categories_icon, audit_categories.display_order AS audit_categories_display_order 
+FROM audit_categories 
+WHERE audit_categories.id IN ($1::INTEGER, $2::INTEGER, $3::INTEGER, $4::INTEGER)
+2026-03-23 01:13:04,442 - sqlalchemy.engine.Engine - INFO - [cached since 4.816s ago] (1, 2, 3, 4)
+2026-03-23 01:13:04,443 - sqlalchemy.engine.Engine - INFO - SELECT audit_questions.category_id AS audit_questions_category_id, audit_questions.id AS audit_questions_id, audit_questions.text AS audit_questions_text, audit_questions.weight AS audit_questions_weight, audit_questions.display_order AS audit_questions_display_order, audit_questions.correct_answer AS audit_questions_correct_answer, audit_questions.na_score AS audit_questions_na_score 
+FROM audit_questions 
+WHERE audit_questions.category_id IN ($1::INTEGER, $2::INTEGER, $3::INTEGER, $4::INTEGER) ORDER BY audit_questions.display_order
+2026-03-23 01:13:04,444 - sqlalchemy.engine.Engine - INFO - [cached since 4.816s ago] (1, 2, 3, 4)
+2026-03-23 01:13:04,450 - sqlalchemy.engine.Engine - INFO - ROLLBACK
+2026-03-23 01:31:13,252 - sqlalchemy.engine.Engine - INFO - BEGIN (implicit)
+2026-03-23 01:31:13,253 - sqlalchemy.engine.Engine - INFO - SELECT users.id, users.email, users.hashed_password, users.full_name, users.is_active, users.role, users.receive_daily_report, users.receive_weekly_report, users.receive_monthly_report, users.coffee_id 
+FROM users 
+WHERE users.id = $1::INTEGER
+2026-03-23 01:31:13,254 - sqlalchemy.engine.Engine - INFO - [cached since 1094s ago] (1,)
+2026-03-23 01:31:13,256 - sqlalchemy.engine.Engine - INFO - SELECT users_1.id AS users_1_id, coffees.id AS coffees_id, coffees.ref AS coffees_ref, coffees.name AS coffees_name, coffees.location AS coffees_location, coffees.active AS coffees_active 
+FROM users AS users_1 JOIN manager_coffees AS manager_coffees_1 ON users_1.id = manager_coffees_1.user_id JOIN coffees ON coffees.id = manager_coffees_1.coffee_id 
+WHERE users_1.id IN ($1::INTEGER)
+2026-03-23 01:31:13,256 - sqlalchemy.engine.Engine - INFO - [cached since 1094s ago] (1,)
+2026-03-23 01:31:13,258 - sqlalchemy.engine.Engine - INFO - SELECT users.id, users.email, users.hashed_password, users.full_name, users.is_active, users.role, users.receive_daily_report, users.receive_weekly_report, users.receive_monthly_report, users.coffee_id 
+FROM users 
+WHERE users.id = $1::INTEGER
+2026-03-23 01:31:13,258 - sqlalchemy.engine.Engine - INFO - [cached since 1094s ago] (1,)
+2026-03-23 01:31:13,259 - sqlalchemy.engine.Engine - INFO - SELECT user_rights.user_id AS user_rights_user_id, user_rights.id AS user_rights_id, user_rights.coffees_read AS user_rights_coffees_read, user_rights.coffees_create AS user_rights_coffees_create, user_rights.coffees_update AS user_rights_coffees_update, user_rights.coffees_delete AS user_rights_coffees_delete, user_rights.audits_read AS user_rights_audits_read, user_rights.audits_create AS user_rights_audits_create, user_rights.audits_update AS user_rights_audits_update, user_rights.audits_delete AS user_rights_audits_delete, user_rights.users_read AS user_rights_users_read, user_rights.users_create AS user_rights_users_create, user_rights.users_update AS user_rights_users_update, user_rights.users_delete AS user_rights_users_delete, user_rights.categories_read AS user_rights_categories_read, user_rights.categories_create AS user_rights_categories_create, user_rights.categories_update AS user_rights_categories_update, user_rights.categories_delete AS user_rights_categories_delete, user_rights.questions_read AS user_rights_questions_read, user_rights.questions_create AS user_rights_questions_create, user_rights.questions_update AS user_rights_questions_update, user_rights.questions_delete AS user_rights_questions_delete 
+FROM user_rights 
+WHERE user_rights.user_id IN ($1::INTEGER)
+2026-03-23 01:31:13,259 - sqlalchemy.engine.Engine - INFO - [cached since 1094s ago] (1,)
+2026-03-23 01:31:13,261 - sqlalchemy.engine.Engine - INFO - SELECT users_1.id AS users_1_id, coffees.id AS coffees_id, coffees.ref AS coffees_ref, coffees.name AS coffees_name, coffees.location AS coffees_location, coffees.active AS coffees_active 
+FROM users AS users_1 JOIN manager_coffees AS manager_coffees_1 ON users_1.id = manager_coffees_1.user_id JOIN coffees ON coffees.id = manager_coffees_1.coffee_id 
+WHERE users_1.id IN ($1::INTEGER)
+2026-03-23 01:31:13,261 - sqlalchemy.engine.Engine - INFO - [cached since 1094s ago] (1,)
+2026-03-23 01:31:13,262 - sqlalchemy.engine.Engine - INFO - ROLLBACK
+2026-03-23 01:31:13,677 - sqlalchemy.engine.Engine - INFO - BEGIN (implicit)
+2026-03-23 01:31:13,678 - sqlalchemy.engine.Engine - INFO - SELECT users.id, users.email, users.hashed_password, users.full_name, users.is_active, users.role, users.receive_daily_report, users.receive_weekly_report, users.receive_monthly_report, users.coffee_id 
+FROM users 
+WHERE users.id = $1::INTEGER
+2026-03-23 01:31:13,678 - sqlalchemy.engine.Engine - INFO - [cached since 1095s ago] (1,)
+2026-03-23 01:31:13,680 - sqlalchemy.engine.Engine - INFO - SELECT users_1.id AS users_1_id, coffees.id AS coffees_id, coffees.ref AS coffees_ref, coffees.name AS coffees_name, coffees.location AS coffees_location, coffees.active AS coffees_active 
+FROM users AS users_1 JOIN manager_coffees AS manager_coffees_1 ON users_1.id = manager_coffees_1.user_id JOIN coffees ON coffees.id = manager_coffees_1.coffee_id 
+WHERE users_1.id IN ($1::INTEGER)
+2026-03-23 01:31:13,680 - sqlalchemy.engine.Engine - INFO - [cached since 1095s ago] (1,)
+2026-03-23 01:31:13,681 - sqlalchemy.engine.Engine - INFO - SELECT audits.id, audits.created_at, audits.updated_at, audits.score, audits.status, audits.coffee_id, audits.auditor_id, audits.shift, audits.staff_present, audits.actions_correctives, audits.training_needs, audits.purchases, audits.photo_url 
+FROM audits 
+ LIMIT $1::INTEGER OFFSET $2::INTEGER
+2026-03-23 01:31:13,682 - sqlalchemy.engine.Engine - INFO - [cached since 1094s ago] (10000, 0)
+2026-03-23 01:31:13,683 - sqlalchemy.engine.Engine - INFO - SELECT users.id AS users_id, users.email AS users_email, users.hashed_password AS users_hashed_password, users.full_name AS users_full_name, users.is_active AS users_is_active, users.role AS users_role, users.receive_daily_report AS users_receive_daily_report, users.receive_weekly_report AS users_receive_weekly_report, users.receive_monthly_report AS users_receive_monthly_report, users.coffee_id AS users_coffee_id 
+FROM users 
+WHERE users.id IN ($1::INTEGER, $2::INTEGER, $3::INTEGER)
+2026-03-23 01:31:13,684 - sqlalchemy.engine.Engine - INFO - [cached since 1094s ago] (1, 3, 5)
+2026-03-23 01:31:13,685 - sqlalchemy.engine.Engine - INFO - SELECT audit_answers.audit_id AS audit_answers_audit_id, audit_answers.id AS audit_answers_id, audit_answers.value AS audit_answers_value, audit_answers.choice AS audit_answers_choice, audit_answers.comment AS audit_answers_comment, audit_answers.photo_url AS audit_answers_photo_url, audit_answers.question_id AS audit_answers_question_id 
+FROM audit_answers 
+WHERE audit_answers.audit_id IN ($1::INTEGER, $2::INTEGER, $3::INTEGER, $4::INTEGER, $5::INTEGER, $6::INTEGER, $7::INTEGER, $8::INTEGER, $9::INTEGER, $10::INTEGER)
+2026-03-23 01:31:13,686 - sqlalchemy.engine.Engine - INFO - [cached since 1094s ago] (2, 3, 4, 5, 6, 8, 7, 9, 1, 10)
+2026-03-23 01:31:13,688 - sqlalchemy.engine.Engine - INFO - SELECT coffees.id AS coffees_id, coffees.ref AS coffees_ref, coffees.name AS coffees_name, coffees.location AS coffees_location, coffees.active AS coffees_active 
+FROM coffees 
+WHERE coffees.id IN ($1::INTEGER, $2::INTEGER, $3::INTEGER, $4::INTEGER, $5::INTEGER)
+2026-03-23 01:31:13,689 - sqlalchemy.engine.Engine - INFO - [cached since 1094s ago] (1, 2, 3, 4, 5)
+2026-03-23 01:31:13,691 - sqlalchemy.engine.Engine - INFO - SELECT audit_questions.id AS audit_questions_id, audit_questions.text AS audit_questions_text, audit_questions.weight AS audit_questions_weight, audit_questions.display_order AS audit_questions_display_order, audit_questions.category_id AS audit_questions_category_id, audit_questions.correct_answer AS audit_questions_correct_answer, audit_questions.na_score AS audit_questions_na_score 
+FROM audit_questions 
+WHERE audit_questions.id IN ($1::INTEGER, $2::INTEGER, $3::INTEGER, $4::INTEGER, $5::INTEGER, $6::INTEGER, $7::INTEGER, $8::INTEGER, $9::INTEGER, $10::INTEGER, $11::INTEGER, $12::INTEGER, $13::INTEGER, $14::INTEGER, $15::INTEGER, $16::INTEGER, $17::INTEGER, $18::INTEGER, $19::INTEGER, $20::INTEGER, $21::INTEGER, $22::INTEGER, $23::INTEGER, $24::INTEGER, $25::INTEGER)
+2026-03-23 01:31:13,691 - sqlalchemy.engine.Engine - INFO - [cached since 1094s ago] (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25)
+2026-03-23 01:31:13,693 - sqlalchemy.engine.Engine - INFO - SELECT audit_categories.id AS audit_categories_id, audit_categories.name AS audit_categories_name, audit_categories.description AS audit_categories_description, audit_categories.icon AS audit_categories_icon, audit_categories.display_order AS audit_categories_display_order 
+FROM audit_categories 
+WHERE audit_categories.id IN ($1::INTEGER, $2::INTEGER, $3::INTEGER, $4::INTEGER)
+2026-03-23 01:31:13,693 - sqlalchemy.engine.Engine - INFO - [cached since 1094s ago] (1, 2, 3, 4)
+2026-03-23 01:31:13,694 - sqlalchemy.engine.Engine - INFO - SELECT audit_questions.category_id AS audit_questions_category_id, audit_questions.id AS audit_questions_id, audit_questions.text AS audit_questions_text, audit_questions.weight AS audit_questions_weight, audit_questions.display_order AS audit_questions_display_order, audit_questions.correct_answer AS audit_questions_correct_answer, audit_questions.na_score AS audit_questions_na_score 
+FROM audit_questions 
+WHERE audit_questions.category_id IN ($1::INTEGER, $2::INTEGER, $3::INTEGER, $4::INTEGER) ORDER BY audit_questions.display_order
+2026-03-23 01:31:13,695 - sqlalchemy.engine.Engine - INFO - [cached since 1094s ago] (1, 2, 3, 4)
+2026-03-23 01:31:13,705 - sqlalchemy.engine.Engine - INFO - ROLLBACK
+2026-03-23 01:31:27,880 - sqlalchemy.engine.Engine - INFO - BEGIN (implicit)
+2026-03-23 01:31:27,881 - sqlalchemy.engine.Engine - INFO - SELECT users.id, users.email, users.hashed_password, users.full_name, users.is_active, users.role, users.receive_daily_report, users.receive_weekly_report, users.receive_monthly_report, users.coffee_id 
+FROM users 
+WHERE users.id = $1::INTEGER
+2026-03-23 01:31:27,881 - sqlalchemy.engine.Engine - INFO - [cached since 1109s ago] (1,)
+2026-03-23 01:31:27,883 - sqlalchemy.engine.Engine - INFO - SELECT users_1.id AS users_1_id, coffees.id AS coffees_id, coffees.ref AS coffees_ref, coffees.name AS coffees_name, coffees.location AS coffees_location, coffees.active AS coffees_active 
+FROM users AS users_1 JOIN manager_coffees AS manager_coffees_1 ON users_1.id = manager_coffees_1.user_id JOIN coffees ON coffees.id = manager_coffees_1.coffee_id 
+WHERE users_1.id IN ($1::INTEGER)
+2026-03-23 01:31:27,883 - sqlalchemy.engine.Engine - INFO - [cached since 1109s ago] (1,)
+2026-03-23 01:31:27,884 - sqlalchemy.engine.Engine - INFO - SELECT users.id, users.email, users.hashed_password, users.full_name, users.is_active, users.role, users.receive_daily_report, users.receive_weekly_report, users.receive_monthly_report, users.coffee_id 
+FROM users 
+WHERE users.id = $1::INTEGER
+2026-03-23 01:31:27,885 - sqlalchemy.engine.Engine - INFO - [cached since 1109s ago] (1,)
+2026-03-23 01:31:27,886 - sqlalchemy.engine.Engine - INFO - SELECT user_rights.user_id AS user_rights_user_id, user_rights.id AS user_rights_id, user_rights.coffees_read AS user_rights_coffees_read, user_rights.coffees_create AS user_rights_coffees_create, user_rights.coffees_update AS user_rights_coffees_update, user_rights.coffees_delete AS user_rights_coffees_delete, user_rights.audits_read AS user_rights_audits_read, user_rights.audits_create AS user_rights_audits_create, user_rights.audits_update AS user_rights_audits_update, user_rights.audits_delete AS user_rights_audits_delete, user_rights.users_read AS user_rights_users_read, user_rights.users_create AS user_rights_users_create, user_rights.users_update AS user_rights_users_update, user_rights.users_delete AS user_rights_users_delete, user_rights.categories_read AS user_rights_categories_read, user_rights.categories_create AS user_rights_categories_create, user_rights.categories_update AS user_rights_categories_update, user_rights.categories_delete AS user_rights_categories_delete, user_rights.questions_read AS user_rights_questions_read, user_rights.questions_create AS user_rights_questions_create, user_rights.questions_update AS user_rights_questions_update, user_rights.questions_delete AS user_rights_questions_delete 
+FROM user_rights 
+WHERE user_rights.user_id IN ($1::INTEGER)
+2026-03-23 01:31:27,886 - sqlalchemy.engine.Engine - INFO - [cached since 1109s ago] (1,)
+2026-03-23 01:31:27,887 - sqlalchemy.engine.Engine - INFO - SELECT users_1.id AS users_1_id, coffees.id AS coffees_id, coffees.ref AS coffees_ref, coffees.name AS coffees_name, coffees.location AS coffees_location, coffees.active AS coffees_active 
+FROM users AS users_1 JOIN manager_coffees AS manager_coffees_1 ON users_1.id = manager_coffees_1.user_id JOIN coffees ON coffees.id = manager_coffees_1.coffee_id 
+WHERE users_1.id IN ($1::INTEGER)
+2026-03-23 01:31:27,887 - sqlalchemy.engine.Engine - INFO - [cached since 1109s ago] (1,)
+2026-03-23 01:31:27,888 - sqlalchemy.engine.Engine - INFO - ROLLBACK
+2026-03-23 01:31:28,540 - sqlalchemy.engine.Engine - INFO - BEGIN (implicit)
+2026-03-23 01:31:28,541 - sqlalchemy.engine.Engine - INFO - SELECT users.id, users.email, users.hashed_password, users.full_name, users.is_active, users.role, users.receive_daily_report, users.receive_weekly_report, users.receive_monthly_report, users.coffee_id 
+FROM users 
+WHERE users.id = $1::INTEGER
+2026-03-23 01:31:28,541 - sqlalchemy.engine.Engine - INFO - [cached since 1109s ago] (1,)
+2026-03-23 01:31:28,543 - sqlalchemy.engine.Engine - INFO - SELECT users_1.id AS users_1_id, coffees.id AS coffees_id, coffees.ref AS coffees_ref, coffees.name AS coffees_name, coffees.location AS coffees_location, coffees.active AS coffees_active 
+FROM users AS users_1 JOIN manager_coffees AS manager_coffees_1 ON users_1.id = manager_coffees_1.user_id JOIN coffees ON coffees.id = manager_coffees_1.coffee_id 
+WHERE users_1.id IN ($1::INTEGER)
+2026-03-23 01:31:28,545 - sqlalchemy.engine.Engine - INFO - [cached since 1109s ago] (1,)
+2026-03-23 01:31:28,548 - sqlalchemy.engine.Engine - INFO - SELECT audits.id, audits.created_at, audits.updated_at, audits.score, audits.status, audits.coffee_id, audits.auditor_id, audits.shift, audits.staff_present, audits.actions_correctives, audits.training_needs, audits.purchases, audits.photo_url 
+FROM audits 
+ LIMIT $1::INTEGER OFFSET $2::INTEGER
+2026-03-23 01:31:28,548 - sqlalchemy.engine.Engine - INFO - [cached since 1109s ago] (10000, 0)
+2026-03-23 01:31:28,549 - sqlalchemy.engine.Engine - INFO - SELECT users.id AS users_id, users.email AS users_email, users.hashed_password AS users_hashed_password, users.full_name AS users_full_name, users.is_active AS users_is_active, users.role AS users_role, users.receive_daily_report AS users_receive_daily_report, users.receive_weekly_report AS users_receive_weekly_report, users.receive_monthly_report AS users_receive_monthly_report, users.coffee_id AS users_coffee_id 
+FROM users 
+WHERE users.id IN ($1::INTEGER, $2::INTEGER, $3::INTEGER)
+2026-03-23 01:31:28,550 - sqlalchemy.engine.Engine - INFO - [cached since 1109s ago] (1, 3, 5)
+2026-03-23 01:31:28,551 - sqlalchemy.engine.Engine - INFO - SELECT audit_answers.audit_id AS audit_answers_audit_id, audit_answers.id AS audit_answers_id, audit_answers.value AS audit_answers_value, audit_answers.choice AS audit_answers_choice, audit_answers.comment AS audit_answers_comment, audit_answers.photo_url AS audit_answers_photo_url, audit_answers.question_id AS audit_answers_question_id 
+FROM audit_answers 
+WHERE audit_answers.audit_id IN ($1::INTEGER, $2::INTEGER, $3::INTEGER, $4::INTEGER, $5::INTEGER, $6::INTEGER, $7::INTEGER, $8::INTEGER, $9::INTEGER, $10::INTEGER)
+2026-03-23 01:31:28,551 - sqlalchemy.engine.Engine - INFO - [cached since 1109s ago] (2, 3, 4, 5, 6, 8, 7, 9, 1, 10)
+2026-03-23 01:31:28,554 - sqlalchemy.engine.Engine - INFO - SELECT coffees.id AS coffees_id, coffees.ref AS coffees_ref, coffees.name AS coffees_name, coffees.location AS coffees_location, coffees.active AS coffees_active 
+FROM coffees 
+WHERE coffees.id IN ($1::INTEGER, $2::INTEGER, $3::INTEGER, $4::INTEGER, $5::INTEGER)
+2026-03-23 01:31:28,555 - sqlalchemy.engine.Engine - INFO - [cached since 1109s ago] (1, 2, 3, 4, 5)
+2026-03-23 01:31:28,558 - sqlalchemy.engine.Engine - INFO - SELECT audit_questions.id AS audit_questions_id, audit_questions.text AS audit_questions_text, audit_questions.weight AS audit_questions_weight, audit_questions.display_order AS audit_questions_display_order, audit_questions.category_id AS audit_questions_category_id, audit_questions.correct_answer AS audit_questions_correct_answer, audit_questions.na_score AS audit_questions_na_score 
+FROM audit_questions 
+WHERE audit_questions.id IN ($1::INTEGER, $2::INTEGER, $3::INTEGER, $4::INTEGER, $5::INTEGER, $6::INTEGER, $7::INTEGER, $8::INTEGER, $9::INTEGER, $10::INTEGER, $11::INTEGER, $12::INTEGER, $13::INTEGER, $14::INTEGER, $15::INTEGER, $16::INTEGER, $17::INTEGER, $18::INTEGER, $19::INTEGER, $20::INTEGER, $21::INTEGER, $22::INTEGER, $23::INTEGER, $24::INTEGER, $25::INTEGER)
+2026-03-23 01:31:28,559 - sqlalchemy.engine.Engine - INFO - [cached since 1109s ago] (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25)
+2026-03-23 01:31:28,561 - sqlalchemy.engine.Engine - INFO - SELECT audit_categories.id AS audit_categories_id, audit_categories.name AS audit_categories_name, audit_categories.description AS audit_categories_description, audit_categories.icon AS audit_categories_icon, audit_categories.display_order AS audit_categories_display_order 
+FROM audit_categories 
+WHERE audit_categories.id IN ($1::INTEGER, $2::INTEGER, $3::INTEGER, $4::INTEGER)
+2026-03-23 01:31:28,562 - sqlalchemy.engine.Engine - INFO - [cached since 1109s ago] (1, 2, 3, 4)
+2026-03-23 01:31:28,563 - sqlalchemy.engine.Engine - INFO - SELECT audit_questions.category_id AS audit_questions_category_id, audit_questions.id AS audit_questions_id, audit_questions.text AS audit_questions_text, audit_questions.weight AS audit_questions_weight, audit_questions.display_order AS audit_questions_display_order, audit_questions.correct_answer AS audit_questions_correct_answer, audit_questions.na_score AS audit_questions_na_score 
+FROM audit_questions 
+WHERE audit_questions.category_id IN ($1::INTEGER, $2::INTEGER, $3::INTEGER, $4::INTEGER) ORDER BY audit_questions.display_order
+2026-03-23 01:31:28,563 - sqlalchemy.engine.Engine - INFO - [cached since 1109s ago] (1, 2, 3, 4)
+2026-03-23 01:31:28,568 - sqlalchemy.engine.Engine - INFO - ROLLBACK
+2026-03-23 01:31:39,122 - sqlalchemy.engine.Engine - INFO - BEGIN (implicit)
+2026-03-23 01:31:39,123 - sqlalchemy.engine.Engine - INFO - SELECT users.id, users.email, users.hashed_password, users.full_name, users.is_active, users.role, users.receive_daily_report, users.receive_weekly_report, users.receive_monthly_report, users.coffee_id 
+FROM users 
+WHERE users.id = $1::INTEGER
+2026-03-23 01:31:39,123 - sqlalchemy.engine.Engine - INFO - [cached since 1120s ago] (1,)
+2026-03-23 01:31:39,125 - sqlalchemy.engine.Engine - INFO - SELECT users_1.id AS users_1_id, coffees.id AS coffees_id, coffees.ref AS coffees_ref, coffees.name AS coffees_name, coffees.location AS coffees_location, coffees.active AS coffees_active 
+FROM users AS users_1 JOIN manager_coffees AS manager_coffees_1 ON users_1.id = manager_coffees_1.user_id JOIN coffees ON coffees.id = manager_coffees_1.coffee_id 
+WHERE users_1.id IN ($1::INTEGER)
+2026-03-23 01:31:39,125 - sqlalchemy.engine.Engine - INFO - [cached since 1120s ago] (1,)
+2026-03-23 01:31:39,126 - sqlalchemy.engine.Engine - INFO - SELECT users.id, users.email, users.hashed_password, users.full_name, users.is_active, users.role, users.receive_daily_report, users.receive_weekly_report, users.receive_monthly_report, users.coffee_id 
+FROM users 
+WHERE users.id = $1::INTEGER
+2026-03-23 01:31:39,126 - sqlalchemy.engine.Engine - INFO - [cached since 1120s ago] (1,)
+2026-03-23 01:31:39,127 - sqlalchemy.engine.Engine - INFO - SELECT user_rights.user_id AS user_rights_user_id, user_rights.id AS user_rights_id, user_rights.coffees_read AS user_rights_coffees_read, user_rights.coffees_create AS user_rights_coffees_create, user_rights.coffees_update AS user_rights_coffees_update, user_rights.coffees_delete AS user_rights_coffees_delete, user_rights.audits_read AS user_rights_audits_read, user_rights.audits_create AS user_rights_audits_create, user_rights.audits_update AS user_rights_audits_update, user_rights.audits_delete AS user_rights_audits_delete, user_rights.users_read AS user_rights_users_read, user_rights.users_create AS user_rights_users_create, user_rights.users_update AS user_rights_users_update, user_rights.users_delete AS user_rights_users_delete, user_rights.categories_read AS user_rights_categories_read, user_rights.categories_create AS user_rights_categories_create, user_rights.categories_update AS user_rights_categories_update, user_rights.categories_delete AS user_rights_categories_delete, user_rights.questions_read AS user_rights_questions_read, user_rights.questions_create AS user_rights_questions_create, user_rights.questions_update AS user_rights_questions_update, user_rights.questions_delete AS user_rights_questions_delete 
+FROM user_rights 
+WHERE user_rights.user_id IN ($1::INTEGER)
+2026-03-23 01:31:39,128 - sqlalchemy.engine.Engine - INFO - [cached since 1120s ago] (1,)
+2026-03-23 01:31:39,129 - sqlalchemy.engine.Engine - INFO - SELECT users_1.id AS users_1_id, coffees.id AS coffees_id, coffees.ref AS coffees_ref, coffees.name AS coffees_name, coffees.location AS coffees_location, coffees.active AS coffees_active 
+FROM users AS users_1 JOIN manager_coffees AS manager_coffees_1 ON users_1.id = manager_coffees_1.user_id JOIN coffees ON coffees.id = manager_coffees_1.coffee_id 
+WHERE users_1.id IN ($1::INTEGER)
+2026-03-23 01:31:39,129 - sqlalchemy.engine.Engine - INFO - [cached since 1120s ago] (1,)
+2026-03-23 01:31:39,130 - sqlalchemy.engine.Engine - INFO - ROLLBACK
+2026-03-23 01:31:39,270 - sqlalchemy.engine.Engine - INFO - BEGIN (implicit)
+2026-03-23 01:31:39,271 - sqlalchemy.engine.Engine - INFO - SELECT users.id, users.email, users.hashed_password, users.full_name, users.is_active, users.role, users.receive_daily_report, users.receive_weekly_report, users.receive_monthly_report, users.coffee_id 
+FROM users 
+WHERE users.id = $1::INTEGER
+2026-03-23 01:31:39,271 - sqlalchemy.engine.Engine - INFO - [cached since 1120s ago] (1,)
+2026-03-23 01:31:39,272 - sqlalchemy.engine.Engine - INFO - SELECT users_1.id AS users_1_id, coffees.id AS coffees_id, coffees.ref AS coffees_ref, coffees.name AS coffees_name, coffees.location AS coffees_location, coffees.active AS coffees_active 
+FROM users AS users_1 JOIN manager_coffees AS manager_coffees_1 ON users_1.id = manager_coffees_1.user_id JOIN coffees ON coffees.id = manager_coffees_1.coffee_id 
+WHERE users_1.id IN ($1::INTEGER)
+2026-03-23 01:31:39,273 - sqlalchemy.engine.Engine - INFO - [cached since 1120s ago] (1,)
+2026-03-23 01:31:39,274 - sqlalchemy.engine.Engine - INFO - SELECT audits.id, audits.created_at, audits.updated_at, audits.score, audits.status, audits.coffee_id, audits.auditor_id, audits.shift, audits.staff_present, audits.actions_correctives, audits.training_needs, audits.purchases, audits.photo_url 
+FROM audits 
+ LIMIT $1::INTEGER OFFSET $2::INTEGER
+2026-03-23 01:31:39,274 - sqlalchemy.engine.Engine - INFO - [cached since 1120s ago] (10000, 0)
+2026-03-23 01:31:39,275 - sqlalchemy.engine.Engine - INFO - SELECT users.id AS users_id, users.email AS users_email, users.hashed_password AS users_hashed_password, users.full_name AS users_full_name, users.is_active AS users_is_active, users.role AS users_role, users.receive_daily_report AS users_receive_daily_report, users.receive_weekly_report AS users_receive_weekly_report, users.receive_monthly_report AS users_receive_monthly_report, users.coffee_id AS users_coffee_id 
+FROM users 
+WHERE users.id IN ($1::INTEGER, $2::INTEGER, $3::INTEGER)
+2026-03-23 01:31:39,276 - sqlalchemy.engine.Engine - INFO - [cached since 1120s ago] (1, 3, 5)
+2026-03-23 01:31:39,277 - sqlalchemy.engine.Engine - INFO - SELECT audit_answers.audit_id AS audit_answers_audit_id, audit_answers.id AS audit_answers_id, audit_answers.value AS audit_answers_value, audit_answers.choice AS audit_answers_choice, audit_answers.comment AS audit_answers_comment, audit_answers.photo_url AS audit_answers_photo_url, audit_answers.question_id AS audit_answers_question_id 
+FROM audit_answers 
+WHERE audit_answers.audit_id IN ($1::INTEGER, $2::INTEGER, $3::INTEGER, $4::INTEGER, $5::INTEGER, $6::INTEGER, $7::INTEGER, $8::INTEGER, $9::INTEGER, $10::INTEGER)
+2026-03-23 01:31:39,277 - sqlalchemy.engine.Engine - INFO - [cached since 1120s ago] (2, 3, 4, 5, 6, 8, 7, 9, 1, 10)
+2026-03-23 01:31:39,279 - sqlalchemy.engine.Engine - INFO - SELECT coffees.id AS coffees_id, coffees.ref AS coffees_ref, coffees.name AS coffees_name, coffees.location AS coffees_location, coffees.active AS coffees_active 
+FROM coffees 
+WHERE coffees.id IN ($1::INTEGER, $2::INTEGER, $3::INTEGER, $4::INTEGER, $5::INTEGER)
+2026-03-23 01:31:39,280 - sqlalchemy.engine.Engine - INFO - [cached since 1120s ago] (1, 2, 3, 4, 5)
+2026-03-23 01:31:39,281 - sqlalchemy.engine.Engine - INFO - SELECT audit_questions.id AS audit_questions_id, audit_questions.text AS audit_questions_text, audit_questions.weight AS audit_questions_weight, audit_questions.display_order AS audit_questions_display_order, audit_questions.category_id AS audit_questions_category_id, audit_questions.correct_answer AS audit_questions_correct_answer, audit_questions.na_score AS audit_questions_na_score 
+FROM audit_questions 
+WHERE audit_questions.id IN ($1::INTEGER, $2::INTEGER, $3::INTEGER, $4::INTEGER, $5::INTEGER, $6::INTEGER, $7::INTEGER, $8::INTEGER, $9::INTEGER, $10::INTEGER, $11::INTEGER, $12::INTEGER, $13::INTEGER, $14::INTEGER, $15::INTEGER, $16::INTEGER, $17::INTEGER, $18::INTEGER, $19::INTEGER, $20::INTEGER, $21::INTEGER, $22::INTEGER, $23::INTEGER, $24::INTEGER, $25::INTEGER)
+2026-03-23 01:31:39,282 - sqlalchemy.engine.Engine - INFO - [cached since 1120s ago] (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25)
+2026-03-23 01:31:39,284 - sqlalchemy.engine.Engine - INFO - SELECT audit_categories.id AS audit_categories_id, audit_categories.name AS audit_categories_name, audit_categories.description AS audit_categories_description, audit_categories.icon AS audit_categories_icon, audit_categories.display_order AS audit_categories_display_order 
+FROM audit_categories 
+WHERE audit_categories.id IN ($1::INTEGER, $2::INTEGER, $3::INTEGER, $4::INTEGER)
+2026-03-23 01:31:39,284 - sqlalchemy.engine.Engine - INFO - [cached since 1120s ago] (1, 2, 3, 4)
+2026-03-23 01:31:39,285 - sqlalchemy.engine.Engine - INFO - SELECT audit_questions.category_id AS audit_questions_category_id, audit_questions.id AS audit_questions_id, audit_questions.text AS audit_questions_text, audit_questions.weight AS audit_questions_weight, audit_questions.display_order AS audit_questions_display_order, audit_questions.correct_answer AS audit_questions_correct_answer, audit_questions.na_score AS audit_questions_na_score 
+FROM audit_questions 
+WHERE audit_questions.category_id IN ($1::INTEGER, $2::INTEGER, $3::INTEGER, $4::INTEGER) ORDER BY audit_questions.display_order
+2026-03-23 01:31:39,285 - sqlalchemy.engine.Engine - INFO - [cached since 1120s ago] (1, 2, 3, 4)
+2026-03-23 01:31:39,290 - sqlalchemy.engine.Engine - INFO - ROLLBACK
+2026-03-23 01:31:48,156 - apscheduler.scheduler - INFO - Scheduler has been shut down
