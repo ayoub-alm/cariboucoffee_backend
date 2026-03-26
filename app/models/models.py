@@ -143,6 +143,9 @@ class Audit(Base):
     coffee_id = Column(Integer, ForeignKey("coffees.id"))
     auditor_id = Column(Integer, ForeignKey("users.id"))
     
+    # User-selected audit date/time
+    date = Column(DateTime(timezone=True), nullable=True)
+    
     # Extra info
     shift = Column(String, nullable=True)
     staff_present = Column(String, nullable=True)

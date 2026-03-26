@@ -155,6 +155,7 @@ class AuditAnswerResponse(AuditAnswerBase):
 
 class AuditCreate(BaseModel):
     coffee_id: int
+    date: Optional[datetime.datetime] = None
     status: AuditStatus = AuditStatus.IN_PROGRESS
     shift: Optional[str] = None
     staff_present: Optional[str] = None
@@ -162,10 +163,12 @@ class AuditCreate(BaseModel):
     training_needs: Optional[str] = None
     purchases: Optional[str] = None
     photo_data: Optional[List[str]] = None
+    existing_photo_urls: Optional[List[str]] = None
     answers: List[AuditAnswerCreate] = []
 
 class AuditUpdate(BaseModel):
     coffee_id: Optional[int] = None
+    date: Optional[datetime.datetime] = None
     status: Optional[AuditStatus] = None
     score: Optional[float] = None
     shift: Optional[str] = None
@@ -174,11 +177,13 @@ class AuditUpdate(BaseModel):
     training_needs: Optional[str] = None
     purchases: Optional[str] = None
     photo_data: Optional[List[str]] = None
+    existing_photo_urls: Optional[List[str]] = None
     answers: Optional[List[AuditAnswerCreate]] = None
 
 class AuditResponse(BaseModel):
     id: int
     created_at: datetime.datetime
+    date: Optional[datetime.datetime] = None
     score: float
     status: Optional[str] = "IN_PROGRESS"
     shift: Optional[str] = None

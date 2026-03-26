@@ -42,7 +42,10 @@ async def get_current_user(
         raise HTTPException(status_code=403, detail="Invalid token payload")
 
     result = await db.execute(
-        select(User).options(selectinload(User.managed_coffees)).where(User.id == user_id)
+        select(User).options(
+            selectinload(User.managed_coffees),
+            selectinload(User.rights)
+        ).where(User.id == user_id)
     )
     user = result.scalars().first()
     if not user:

@@ -15,15 +15,57 @@ from app.utils.pdf_generator import generate_audit_pdf
 
 
 def _save_photo_list(photo_data_list: list[str] | None) -> str | None:
-    """Save a list of base64 images and return a JSON array of URLs."""
+    """Save a list of base64 images and return a JSON array of URLs.
+    Correctly retains existing image HTTP URLs without breaking."""
     if not photo_data_list:
         return None
     urls = []
-    for b64 in photo_data_list:
-        url = save_base64_image(b64)
-        if url:
-            urls.append(url)
+    for item in photo_data_list:
+        if item.startswith("data:"):
+            url = save_base64_image(item)
+            if url:
+                urls.append(url)
+        else:
+            # Keep existing server-side photos
+            if "/static/" in item:
+                relative = "/static/" + item.split("/static/", 1)[1]
+            else:
+                relative = item
+            urls.append(relative)
+            
     return json.dumps(urls) if urls else None
+
+
+def _merge_photo_urls(
+    existing_photo_urls: list[str] | None,
+    new_photo_data: list[str] | None,
+) -> str | None:
+    """Merge previously saved photo URLs with newly uploaded base64 images.
+    
+    - existing_photo_urls: full URLs the frontend wants to keep (e.g. http://host/static/uploads/x.jpg)
+    - new_photo_data: base64 images to save to disk
+    Returns a JSON-encoded list of relative server paths.
+    """
+    all_urls: list[str] = []
+
+    # Keep existing server-side photos (strip base URL to get relative path)
+    if existing_photo_urls:
+        for url in existing_photo_urls:
+            # Strip any base URL prefix to get the relative path like /static/uploads/x.jpg
+            if "/static/" in url:
+                relative = "/static/" + url.split("/static/", 1)[1]
+            else:
+                relative = url
+            all_urls.append(relative)
+
+    # Save new base64 photos and add their URLs
+    if new_photo_data:
+        for b64 in new_photo_data:
+            url = save_base64_image(b64)
+            if url:
+                all_urls.append(url)
+
+    return json.dumps(all_urls) if all_urls else None
 
 router = APIRouter()
 
@@ -81,17 +123,19 @@ async def create_audit(
     Only Admin and Auditor can create.
     """
     try:
-        if current_user.role not in (UserRole.ADMIN, UserRole.AUDITOR):
+        can_create = current_user.role in (UserRole.ADMIN, UserRole.AUDITOR)
+        if not can_create and current_user.rights and current_user.rights.audits_create:
+            can_create = True
+            
+        if not can_create:
             raise HTTPException(status_code=403, detail="Not enough permissions")
 
-        # precise calculation of score logic can be added here
-        # For now, just sum the values or something simple
-        
-        photo_url = _save_photo_list(audit_in.photo_data)
+        photo_url = _merge_photo_urls(audit_in.existing_photo_urls, audit_in.photo_data)
 
         audit = Audit(
             coffee_id=audit_in.coffee_id,
             auditor_id=current_user.id,
+            date=audit_in.date,
             score=0.0,
             status=audit_in.status or AuditStatus.IN_PROGRESS,
             shift=audit_in.shift,
@@ -290,7 +334,8 @@ async def update_audit(
     if not audit:
         raise HTTPException(status_code=404, detail="Audit not found")
         
-    if current_user.role == UserRole.ADMIN:
+    has_update_rights = current_user.rights and current_user.rights.audits_update
+    if current_user.role == UserRole.ADMIN or has_update_rights:
         pass
     elif current_user.role == UserRole.AUDITOR:
         if audit.auditor_id != current_user.id:
@@ -304,6 +349,8 @@ async def update_audit(
         audit.status = audit_in.status
     if audit_in.coffee_id is not None:
         audit.coffee_id = audit_in.coffee_id
+    if audit_in.date is not None:
+        audit.date = audit_in.date
     if audit_in.shift is not None:
         audit.shift = audit_in.shift
     if audit_in.staff_present is not None:
@@ -314,10 +361,10 @@ async def update_audit(
         audit.training_needs = audit_in.training_needs
     if audit_in.purchases is not None:
         audit.purchases = audit_in.purchases
-    if audit_in.photo_data is not None:
-        photo_url = _save_photo_list(audit_in.photo_data)
-        if photo_url:
-            audit.photo_url = photo_url
+    # Merge existing photo URLs with any new uploads
+    if audit_in.photo_data is not None or audit_in.existing_photo_urls is not None:
+        merged = _merge_photo_urls(audit_in.existing_photo_urls, audit_in.photo_data)
+        audit.photo_url = merged
 
     # If answers provided, replace logic
     if audit_in.answers is not None:
@@ -401,8 +448,9 @@ async def delete_audit(
     """
     Delete an audit. Only Admin can delete.
     """
-    if current_user.role != UserRole.ADMIN:
-        raise HTTPException(status_code=403, detail="Only administrators can delete audits")
+    has_delete_rights = current_user.rights and current_user.rights.audits_delete
+    if current_user.role != UserRole.ADMIN and not has_delete_rights:
+        raise HTTPException(status_code=403, detail="Not enough permissions to delete audits")
 
     query = select(Audit).where(Audit.id == id)
     result = await db.execute(query)
