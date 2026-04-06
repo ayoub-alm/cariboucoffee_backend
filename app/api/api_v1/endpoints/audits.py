@@ -448,7 +448,7 @@ async def update_audit(
     result = await db.execute(query)
     return result.scalars().first()
 
-@router.delete("/{id}", response_model=schemas.AuditResponse)
+@router.delete("/{id}")
 async def delete_audit(
     *,
     db: AsyncSession = Depends(deps.get_db),
@@ -456,7 +456,7 @@ async def delete_audit(
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
     """
-    Delete an audit. Only Admin can delete.
+    Delete an audit.
     """
     has_delete_rights = current_user.rights and current_user.rights.audits_delete
     if current_user.role != UserRole.ADMIN and not has_delete_rights:
@@ -470,7 +470,8 @@ async def delete_audit(
 
     await db.delete(audit)
     await db.commit()
-    return audit
+    return {"message": "Audit deleted successfully", "id": id}
+
 
 @router.post("/bulk-delete")
 async def bulk_delete_audits(

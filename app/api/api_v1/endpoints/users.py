@@ -145,6 +145,12 @@ async def create_user(
     if result.scalars().first():
         raise HTTPException(status_code=400, detail="A user with this email already exists")
 
+    # Fetch managed coffees beforehand to avoid lazy-loading issues after db.add()
+    managed_coffees = []
+    if user_in.managed_coffee_ids:
+        c_result = await db.execute(select(Coffee).where(Coffee.id.in_(user_in.managed_coffee_ids)))
+        managed_coffees = list(c_result.scalars().all())
+
     user = User(
         email=user_in.email,
         hashed_password=get_password_hash(user_in.password),
@@ -152,16 +158,21 @@ async def create_user(
         role=user_in.role,
         is_active=True,
         coffee_id=user_in.coffee_id,
+        managed_coffees=managed_coffees
     )
     db.add(user)
-    await db.flush()
-
-    if user_in.managed_coffee_ids:
-        await _sync_managed_coffees(db, user, user_in.managed_coffee_ids)
+    
+    # Defaults based on role
+    if user.role == UserRole.ADMIN:
+        # Admins don't strictly need a UserRights row as the guard handles it, 
+        # but let's create a full-access object for consistency if needed.
+        # Actually, let the model/default handle it or create explicit rights here.
+        pass
 
     await db.commit()
     user = await _load_user(db, user.id)
     return _user_to_response(user)
+
 
 
 @router.put("/{user_id}")
@@ -222,4 +233,5 @@ async def delete_user(
 
     await db.delete(user)
     await db.commit()
-    return _user_to_response(user)
+    return {"message": "User deleted successfully", "id": user_id}
+

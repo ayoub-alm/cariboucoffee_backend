@@ -97,7 +97,7 @@ async def update_coffee(
     await db.refresh(coffee)
     return coffee
 
-@router.delete("/{coffee_id}", response_model=schemas.CoffeeResponse)
+@router.delete("/{coffee_id}")
 async def delete_coffee(
     *,
     db: AsyncSession = Depends(deps.get_db),
@@ -105,7 +105,7 @@ async def delete_coffee(
     current_user: Any = Depends(deps.get_current_active_superuser),
 ) -> Any:
     """
-    Delete a coffee (or mark as inactive).
+    Delete a coffee.
     """
     query = select(Coffee).where(Coffee.id == coffee_id)
     result = await db.execute(query)
@@ -115,4 +115,5 @@ async def delete_coffee(
         
     await db.delete(coffee)
     await db.commit()
-    return coffee
+    return {"message": "Coffee deleted successfully", "id": coffee_id}
+
