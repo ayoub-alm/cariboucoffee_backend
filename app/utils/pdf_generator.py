@@ -88,14 +88,26 @@ def generate_audit_pdf(audit: Audit) -> bytes:
         pdf.set_font('Arial', 'B', 12)
         pdf.set_text_color(50, 50, 50)
         pdf.cell(0, 8, f"Photo(s) Generale(s) de l'Audit ({len(photo_urls)}):", ln=1)
-        for pu in photo_urls:
+        
+        img_w, img_h = 60, 60 # Approx 300px size
+        x_start = 10
+        gap = 5
+        
+        for i, pu in enumerate(photo_urls):
             img_path = pu
             if img_path.startswith('/static/'):
                 img_path = "app" + img_path
             if os.path.exists(img_path):
                 try:
-                    pdf.image(img_path, w=90)
-                    pdf.ln(3)
+                    col = i % 3
+                    if col == 0 and pdf.h - pdf.get_y() < img_h + 10:
+                        pdf.add_page()
+                    
+                    curr_x = x_start + col * (img_w + gap)
+                    pdf.image(img_path, x=curr_x, y=pdf.get_y(), w=img_w, h=img_h)
+                    
+                    if col == 2 or i == len(photo_urls) - 1:
+                        pdf.set_y(pdf.get_y() + img_h + 5)
                 except Exception as e:
                     print(f"Error loading image {img_path}: {e}")
         pdf.ln(2)
@@ -167,17 +179,26 @@ def generate_audit_pdf(audit: Audit) -> bytes:
                     pdf.cell(10, 6, "")
                     pdf.multi_cell(0, 6, f"Remarque: {safe_comment}", border=0)
                 
-                for apu in ans_photo_urls:
+                img_w, img_h = 60, 60 # Approx 300px size
+                x_start = 20
+                gap = 3
+                
+                for i, apu in enumerate(ans_photo_urls):
                     img_path = apu
                     if img_path.startswith('/static/'):
                         img_path = "app" + img_path
                     if os.path.exists(img_path):
-                        if pdf.h - pdf.get_y() < 70:
-                            pdf.add_page()
-                        pdf.ln(2)
                         try:
-                            pdf.image(img_path, x=20, w=60)
-                            pdf.ln(2)
+                            # 3 images per row horizontally
+                            col = i % 3
+                            if col == 0 and pdf.h - pdf.get_y() < img_h + 10:
+                                pdf.add_page()
+                            
+                            curr_x = x_start + col * (img_w + gap)
+                            pdf.image(img_path, x=curr_x, y=pdf.get_y(), w=img_w, h=img_h)
+                            
+                            if col == 2 or i == len(ans_photo_urls) - 1:
+                                pdf.set_y(pdf.get_y() + img_h + 2)
                         except Exception as e:
                             print(f"Error loading image {img_path}: {e}")
 
