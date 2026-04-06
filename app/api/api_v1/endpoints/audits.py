@@ -89,9 +89,12 @@ async def read_audits(
             selectinload(Audit.answers).selectinload(AuditAnswer.question).selectinload(AuditQuestion.category).selectinload(AuditCategory.questions)
         ).offset(skip).limit(limit)
 
-        if current_user.role in (UserRole.ADMIN, UserRole.BOSS):
+        has_read_rights = current_user.rights and current_user.rights.audits_read
+        if current_user.role in (UserRole.ADMIN, UserRole.BOSS) or has_read_rights:
+            # Full access if ADMIN/BOSS or explicit audits_read permission
             pass
         elif current_user.role == UserRole.AUDITOR:
+            # Auditor sees their own
             query = query.where(Audit.auditor_id == current_user.id)
         elif current_user.role == UserRole.MANAGER:
             managed_ids = [c.id for c in current_user.managed_coffees] if current_user.managed_coffees else []
@@ -102,6 +105,10 @@ async def read_audits(
             if not current_user.coffee_id:
                 return []
             query = query.where(Audit.coffee_id == current_user.coffee_id)
+        else:
+            # Fallback for roles like MANAGER without explicit rights (handled by business logic above already)
+            # but if something else hits here, return empty
+            return []
         
         result = await db.execute(query)
         audits = result.scalars().all()
@@ -248,7 +255,8 @@ async def read_audit(
     if not audit:
         raise HTTPException(status_code=404, detail="Audit not found")
     
-    if current_user.role in (UserRole.ADMIN, UserRole.BOSS):
+    has_read_rights = current_user.rights and current_user.rights.audits_read
+    if current_user.role in (UserRole.ADMIN, UserRole.BOSS) or has_read_rights:
         pass
     elif current_user.role == UserRole.AUDITOR:
         if audit.auditor_id != current_user.id:
@@ -260,6 +268,8 @@ async def read_audit(
     elif current_user.role == UserRole.VIEWER:
         if audit.coffee_id != current_user.coffee_id:
             raise HTTPException(status_code=403, detail="Not authorized to view this audit")
+    else:
+        raise HTTPException(status_code=403, detail="Not authorized to view this audit")
     
     return audit
 
@@ -472,8 +482,10 @@ async def bulk_delete_audits(
     """
     Bulk delete audits. Only Admin can delete.
     """
-    if current_user.role != UserRole.ADMIN:
-        raise HTTPException(status_code=403, detail="Only administrators can delete audits")
+    has_delete_rights = current_user.rights and current_user.rights.audits_delete
+    if current_user.role != UserRole.ADMIN and not has_delete_rights:
+        raise HTTPException(status_code=403, detail="Only administrators or authorized users can delete audits")
+
 
     if not body.ids:
         return {"message": "No ids provided"}
