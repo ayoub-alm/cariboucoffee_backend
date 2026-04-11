@@ -89,9 +89,9 @@ def generate_audit_pdf(audit: Audit) -> bytes:
         pdf.set_text_color(50, 50, 50)
         pdf.cell(0, 8, f"Photo(s) Generale(s) de l'Audit ({len(photo_urls)}):", ln=1)
         
-        img_w, img_h = 60, 60 # Approx 300px size
+        img_w, img_h = 45, 45 # Approx 200px size for 4 per line
         x_start = 10
-        gap = 5
+        gap = 2
         
         for i, pu in enumerate(photo_urls):
             img_path = pu
@@ -99,14 +99,14 @@ def generate_audit_pdf(audit: Audit) -> bytes:
                 img_path = "app" + img_path
             if os.path.exists(img_path):
                 try:
-                    col = i % 3
+                    col = i % 4
                     if col == 0 and pdf.h - pdf.get_y() < img_h + 10:
                         pdf.add_page()
                     
                     curr_x = x_start + col * (img_w + gap)
                     pdf.image(img_path, x=curr_x, y=pdf.get_y(), w=img_w, h=img_h)
                     
-                    if col == 2 or i == len(photo_urls) - 1:
+                    if col == 3 or i == len(photo_urls) - 1:
                         pdf.set_y(pdf.get_y() + img_h + 5)
                 except Exception as e:
                     print(f"Error loading image {img_path}: {e}")
@@ -179,9 +179,9 @@ def generate_audit_pdf(audit: Audit) -> bytes:
                     pdf.cell(10, 6, "")
                     pdf.multi_cell(0, 6, f"Remarque: {safe_comment}", border=0)
                 
-                img_w, img_h = 60, 60 # Approx 300px size
+                img_w, img_h = 42, 42 # Slightly smaller for answer section due to indent
                 x_start = 20
-                gap = 3
+                gap = 2
                 
                 for i, apu in enumerate(ans_photo_urls):
                     img_path = apu
@@ -189,15 +189,15 @@ def generate_audit_pdf(audit: Audit) -> bytes:
                         img_path = "app" + img_path
                     if os.path.exists(img_path):
                         try:
-                            # 3 images per row horizontally
-                            col = i % 3
+                            # 4 images per row horizontally
+                            col = i % 4
                             if col == 0 and pdf.h - pdf.get_y() < img_h + 10:
                                 pdf.add_page()
                             
                             curr_x = x_start + col * (img_w + gap)
                             pdf.image(img_path, x=curr_x, y=pdf.get_y(), w=img_w, h=img_h)
                             
-                            if col == 2 or i == len(ans_photo_urls) - 1:
+                            if col == 3 or i == len(ans_photo_urls) - 1:
                                 pdf.set_y(pdf.get_y() + img_h + 2)
                         except Exception as e:
                             print(f"Error loading image {img_path}: {e}")

@@ -87,7 +87,7 @@ async def read_audits(
             selectinload(Audit.coffee),
             selectinload(Audit.auditor),
             selectinload(Audit.answers).selectinload(AuditAnswer.question).selectinload(AuditQuestion.category).selectinload(AuditCategory.questions)
-        ).offset(skip).limit(limit)
+        ).order_by(Audit.date.desc(), Audit.created_at.desc()).offset(skip).limit(limit)
 
         has_read_rights = current_user.rights and current_user.rights.audits_read
         if current_user.role in (UserRole.ADMIN, UserRole.BOSS) or has_read_rights:
