@@ -344,3 +344,67 @@ async def send_weekly_report():
 
     if errors:
         raise RuntimeError(f"Some emails failed: {errors}")
+
+async def send_user_report(user_id: int, days: int):
+    """
+    Send a report for the last N days to a specific user.
+    """
+    now = datetime.now(timezone.utc)
+    start_date = now - timedelta(days=days)
+    
+    label_map = {1: "Journalier", 7: "Hebdomadaire", 30: "Mensuel"}
+    period_type = label_map.get(days, f"Derniers {days} jours")
+    period_label = f"{start_date.strftime('%d/%m/%Y')} – {now.strftime('%d/%m/%Y')}"
+
+    async with session.SessionLocal() as db:
+        # Load user
+        user_result = await db.execute(select(User).where(User.id == user_id))
+        user = user_result.scalars().first()
+        if not user or not user.is_active:
+            print(f"User {user_id} not found or inactive. Skipping.")
+            return
+
+        # Fetch audits
+        result = await db.execute(
+            select(Audit)
+            .options(
+                selectinload(Audit.coffee),
+                selectinload(Audit.auditor),
+                selectinload(Audit.answers).selectinload(AuditAnswer.question),
+            )
+            .where(Audit.created_at >= start_date)
+            .order_by(Audit.created_at.desc())
+        )
+        audits = result.scalars().all()
+
+    html_body = _build_html(audits, f"{period_type} ({period_label})", now)
+    plain_body = (
+        f"Rapport d'audit Caribou Coffee — {period_type}\n\n"
+        f"Période: {period_label}\n"
+        f"Total audits: {len(audits)}\n"
+        f"Score moyen: {(sum(a.score for a in audits)/len(audits)):.0f}%\n\n"
+        f"Consultez le tableau de bord: {config.settings.FRONTEND_URL}/audits"
+    ) if audits else f"Aucun audit enregistré pour la période : {period_label}"
+
+    subject = f"[Caribou Coffee] Rapport d'audit {period_type.lower()} — {period_label}"
+
+    try:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"]    = f"{config.settings.EMAILS_FROM_NAME} <{config.settings.EMAILS_FROM_EMAIL}>"
+        msg["To"]      = user.email
+
+        msg.attach(MIMEText(plain_body, "plain", "utf-8"))
+        msg.attach(MIMEText(html_body,  "html",  "utf-8"))
+
+        with smtplib.SMTP(config.settings.SMTP_HOST, config.settings.SMTP_PORT, timeout=10) as server:
+            server.ehlo()
+            server.starttls()
+            server.ehlo()
+            server.login(config.settings.SMTP_USER, config.settings.SMTP_PASSWORD)
+            server.sendmail(config.settings.EMAILS_FROM_EMAIL, user.email, msg.as_string())
+
+        print(f"[EMAIL] Sent instant {period_type.lower()} report to {user.email}")
+    except Exception as e:
+        print(f"[EMAIL ERROR] Failed to send instant report to {user.email}: {e}")
+        raise e

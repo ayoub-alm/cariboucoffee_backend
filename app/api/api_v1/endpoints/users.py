@@ -10,6 +10,7 @@ from app.api import deps
 from app.models.models import User, UserRole, Coffee, UserRights
 from app.schemas import schemas
 from app.core.security import get_password_hash, verify_password
+from app.services.notification import send_user_report
 
 router = APIRouter()
 
@@ -235,3 +236,24 @@ async def delete_user(
     await db.commit()
     return {"message": "User deleted successfully", "id": user_id}
 
+
+@router.post("/{user_id}/send-report")
+async def trigger_user_report(
+    user_id: int,
+    days: int = Body(..., embed=True),
+    current_user: User = Depends(deps.get_current_user),
+    db: AsyncSession = Depends(deps.get_db),
+) -> Any:
+    """Trigger an instant email report for a user."""
+    if current_user.role != UserRole.ADMIN:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not enough privileges")
+    
+    user = await _load_user(db, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    try:
+        await send_user_report(user_id, days)
+        return {"message": f"Rapport ({days} jours) envoyé avec succès à {user.email}"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erreur lors de l'envoi de l'email: {str(e)}")
