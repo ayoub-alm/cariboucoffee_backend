@@ -41,6 +41,8 @@ os.makedirs("app/static", exist_ok=True)
 
 # Mount static files
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
+# Also mount at /api/static to handle cases where Apache proxies /api to the backend without stripping the prefix
+app.mount("/api/static", StaticFiles(directory="app/static"), name="api_static")
 
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
