@@ -8,10 +8,9 @@ services:
       - ./data/postgres:/var/lib/postgresql/data/
     environment:
       - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_PASSWORD=YOUR_NEW_SECURE_PASSWORD
       - POSTGRES_DB=caribou
-    ports:
-      - "5440:5432"
+    # Removed public port mapping to prevent external attacks
 
   web:
     build: .
@@ -25,7 +24,7 @@ services:
     environment:
       - POSTGRES_SERVER=db
       - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_PASSWORD=YOUR_NEW_SECURE_PASSWORD
       - POSTGRES_DB=caribou
       - POSTGRES_PORT=5432
     depends_on:
