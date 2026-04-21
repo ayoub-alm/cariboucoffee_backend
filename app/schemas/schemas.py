@@ -162,6 +162,7 @@ class AuditCreate(BaseModel):
     actions_correctives: Optional[str] = None
     training_needs: Optional[str] = None
     purchases: Optional[str] = None
+    conclusion: Optional[str] = None
     photo_data: Optional[List[str]] = None
     existing_photo_urls: Optional[List[str]] = None
     answers: List[AuditAnswerCreate] = []
@@ -176,6 +177,7 @@ class AuditUpdate(BaseModel):
     actions_correctives: Optional[str] = None
     training_needs: Optional[str] = None
     purchases: Optional[str] = None
+    conclusion: Optional[str] = None
     photo_data: Optional[List[str]] = None
     existing_photo_urls: Optional[List[str]] = None
     answers: Optional[List[AuditAnswerCreate]] = None
@@ -191,6 +193,7 @@ class AuditResponse(BaseModel):
     actions_correctives: Optional[str] = None
     training_needs: Optional[str] = None
     purchases: Optional[str] = None
+    conclusion: Optional[str] = None
     photo_url: Optional[str] = None
     coffee: Optional[CoffeeResponse] = None
     auditor: Optional[UserResponse] = None

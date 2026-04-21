@@ -150,6 +150,7 @@ async def create_audit(
             actions_correctives=audit_in.actions_correctives,
             training_needs=audit_in.training_needs,
             purchases=audit_in.purchases,
+            conclusion=audit_in.conclusion,
             photo_url=photo_url
         )
         db.add(audit)
@@ -371,6 +372,8 @@ async def update_audit(
         audit.training_needs = audit_in.training_needs
     if audit_in.purchases is not None:
         audit.purchases = audit_in.purchases
+    if audit_in.conclusion is not None:
+        audit.conclusion = audit_in.conclusion
     # Merge existing photo URLs with any new uploads
     if audit_in.photo_data is not None or audit_in.existing_photo_urls is not None:
         merged = _merge_photo_urls(audit_in.existing_photo_urls, audit_in.photo_data)

@@ -1,10 +1,10 @@
 from typing import Any, List
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from app.api import deps
-from app.models.models import Coffee, UserRole
+from app.models.models import Coffee, UserRole, User
 from app.schemas import schemas
 
 router = APIRouter()
@@ -14,10 +14,16 @@ async def read_coffees(
     db: AsyncSession = Depends(deps.get_db),
     skip: int = 0,
     limit: int = 100,
+    current_user: User = Depends(deps.get_current_user),
 ) -> Any:
     """
     Retrieve coffees.
     """
+    # Check permissions
+    has_read_rights = current_user.rights and current_user.rights.coffees_read
+    if current_user.role not in (UserRole.ADMIN, UserRole.BOSS, UserRole.MANAGER) and not has_read_rights:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
+
     query = select(Coffee).offset(skip).limit(limit)
     result = await db.execute(query)
     coffees = result.scalars().all()
@@ -47,11 +53,15 @@ async def create_coffee(
     *,
     db: AsyncSession = Depends(deps.get_db),
     coffee_in: schemas.CoffeeCreate,
-    current_user: Any = Depends(deps.get_current_active_superuser),
+    current_user: User = Depends(deps.get_current_user),
 ) -> Any:
     """
-    Create new coffee. If `ref` is not provided, auto-generates one (CAF-001, CAF-002, …).
+    Create new coffee.
     """
+    has_create_rights = current_user.rights and current_user.rights.coffees_create
+    if current_user.role != UserRole.ADMIN and not has_create_rights:
+         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
+
     ref = coffee_in.ref
     if not ref:
         # Count existing coffees to build the next ref
@@ -77,18 +87,22 @@ async def update_coffee(
     db: AsyncSession = Depends(deps.get_db),
     coffee_id: int,
     coffee_in: schemas.CoffeeUpdate,
-    current_user: Any = Depends(deps.get_current_active_superuser),
+    current_user: User = Depends(deps.get_current_user),
 ) -> Any:
     """
     Update a coffee.
     """
+    has_update_rights = current_user.rights and current_user.rights.coffees_update
+    if current_user.role != UserRole.ADMIN and not has_update_rights:
+         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
+
     query = select(Coffee).where(Coffee.id == coffee_id)
     result = await db.execute(query)
     coffee = result.scalars().first()
     if not coffee:
         raise HTTPException(status_code=404, detail="Coffee not found")
         
-    update_data = coffee_in.model_dump(exclude_unset=True) # Assuming Pydantic v2
+    update_data = coffee_in.model_dump(exclude_unset=True) 
     for field, value in update_data.items():
         setattr(coffee, field, value)
         
@@ -102,11 +116,15 @@ async def delete_coffee(
     *,
     db: AsyncSession = Depends(deps.get_db),
     coffee_id: int,
-    current_user: Any = Depends(deps.get_current_active_superuser),
+    current_user: User = Depends(deps.get_current_user),
 ) -> Any:
     """
     Delete a coffee.
     """
+    has_delete_rights = current_user.rights and current_user.rights.coffees_delete
+    if current_user.role != UserRole.ADMIN and not has_delete_rights:
+         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
+
     query = select(Coffee).where(Coffee.id == coffee_id)
     result = await db.execute(query)
     coffee = result.scalars().first()
@@ -116,4 +134,3 @@ async def delete_coffee(
     await db.delete(coffee)
     await db.commit()
     return {"message": "Coffee deleted successfully", "id": coffee_id}
-

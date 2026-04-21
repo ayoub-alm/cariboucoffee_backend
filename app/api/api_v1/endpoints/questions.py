@@ -20,6 +20,11 @@ async def read_questions(
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
     """Retrieve audit questions ordered by display_order."""
+    has_read_rights = current_user.rights and current_user.rights.questions_read
+    if current_user.role not in (UserRole.ADMIN, UserRole.BOSS, UserRole.AUDITOR) and not has_read_rights:
+        from fastapi import status
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
+
     query = (
         select(AuditQuestion)
         .options(selectinload(AuditQuestion.category).selectinload(AuditCategory.questions))
@@ -41,7 +46,8 @@ async def reorder_questions(
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
     """Bulk-update display_order for questions. Admin only."""
-    if current_user.role != UserRole.ADMIN:
+    has_update_rights = current_user.rights and current_user.rights.questions_update
+    if current_user.role != UserRole.ADMIN and not has_update_rights:
         raise HTTPException(status_code=403, detail="Not enough permissions")
 
     result = await db.execute(select(AuditQuestion))
@@ -79,7 +85,8 @@ async def create_question(
     question_in: schemas.AuditQuestionCreate,
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
-    if current_user.role != UserRole.ADMIN:
+    has_create_rights = current_user.rights and current_user.rights.questions_create
+    if current_user.role != UserRole.ADMIN and not has_create_rights:
         raise HTTPException(status_code=403, detail="Not enough permissions")
 
     category_query = select(AuditCategory).where(AuditCategory.id == question_in.category_id)
@@ -120,7 +127,8 @@ async def update_question(
     question_in: schemas.AuditQuestionCreate,
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
-    if current_user.role != UserRole.ADMIN:
+    has_update_rights = current_user.rights and current_user.rights.questions_update
+    if current_user.role != UserRole.ADMIN and not has_update_rights:
         raise HTTPException(status_code=403, detail="Not enough permissions")
 
     query = select(AuditQuestion).where(AuditQuestion.id == question_id)
@@ -157,7 +165,8 @@ async def delete_question(
     question_id: int,
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
-    if current_user.role != UserRole.ADMIN:
+    has_delete_rights = current_user.rights and current_user.rights.questions_delete
+    if current_user.role != UserRole.ADMIN and not has_delete_rights:
         raise HTTPException(status_code=403, detail="Not enough permissions")
 
     query = select(AuditQuestion).where(AuditQuestion.id == question_id)

@@ -18,7 +18,11 @@ async def read_categories(
     limit: int = 100,
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
-    """Retrieve audit categories ordered by display_order."""
+    # Check permissions
+    has_read_rights = current_user.rights and current_user.rights.categories_read
+    if current_user.role not in (UserRole.ADMIN, UserRole.BOSS, UserRole.AUDITOR) and not has_read_rights:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
+
     query = (
         select(AuditCategory)
         .options(selectinload(AuditCategory.questions))
@@ -38,7 +42,8 @@ async def reorder_categories(
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
     """Bulk-update display_order for categories. Admin only."""
-    if current_user.role != UserRole.ADMIN:
+    has_update_rights = current_user.rights and current_user.rights.categories_update
+    if current_user.role != UserRole.ADMIN and not has_update_rights:
         raise HTTPException(status_code=403, detail="Not enough permissions")
 
     result = await db.execute(select(AuditCategory))
@@ -67,14 +72,15 @@ async def read_category(
     return category
 
 
-@router.post("", response_model=schemas.AuditCategoryResponse)
+@router.post("")
 async def create_category(
     *,
     db: AsyncSession = Depends(deps.get_db),
     category_in: schemas.AuditCategoryCreate,
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
-    if current_user.role != UserRole.ADMIN:
+    has_create_rights = current_user.rights and current_user.rights.categories_create
+    if current_user.role != UserRole.ADMIN and not has_create_rights:
         raise HTTPException(status_code=403, detail="Not enough permissions")
 
     # Auto-set display_order to max+1 if not provided
@@ -95,7 +101,7 @@ async def create_category(
     return result.scalars().first()
 
 
-@router.put("/{category_id}", response_model=schemas.AuditCategoryResponse)
+@router.put("/{category_id}")
 async def update_category(
     *,
     db: AsyncSession = Depends(deps.get_db),
@@ -103,7 +109,8 @@ async def update_category(
     category_in: schemas.AuditCategoryCreate,
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
-    if current_user.role != UserRole.ADMIN:
+    has_update_rights = current_user.rights and current_user.rights.categories_update
+    if current_user.role != UserRole.ADMIN and not has_update_rights:
         raise HTTPException(status_code=403, detail="Not enough permissions")
 
     query = select(AuditCategory).where(AuditCategory.id == category_id).options(selectinload(AuditCategory.questions))
@@ -130,7 +137,8 @@ async def delete_category(
     category_id: int,
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
-    if current_user.role != UserRole.ADMIN:
+    has_delete_rights = current_user.rights and current_user.rights.categories_delete
+    if current_user.role != UserRole.ADMIN and not has_delete_rights:
         raise HTTPException(status_code=403, detail="Not enough permissions")
 
     query = select(AuditCategory).where(AuditCategory.id == category_id)

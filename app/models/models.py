@@ -152,6 +152,7 @@ class Audit(Base):
     actions_correctives = Column(String, nullable=True)
     training_needs = Column(String, nullable=True)
     purchases = Column(String, nullable=True)
+    conclusion = Column(String, nullable=True)
     photo_url = Column(String, nullable=True)
     
     coffee = relationship("Coffee", back_populates="audits")

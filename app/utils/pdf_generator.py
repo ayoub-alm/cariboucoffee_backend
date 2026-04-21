@@ -221,8 +221,10 @@ def generate_audit_pdf(audit: Audit) -> bytes:
             pdf.multi_cell(0, 6, safe_text)
             pdf.ln(4)
 
-    print_section("Actions Correctives:", audit.actions_correctives)
-    print_section("Besoins en formation:", audit.training_needs)
-    print_section("Achats recommandes:", audit.purchases)
+    print_section("Conclusion Générale:", audit.conclusion)
+    if not audit.conclusion:
+        print_section("Actions Correctives:", audit.actions_correctives)
+        print_section("Besoins en formation:", audit.training_needs)
+        print_section("Achats recommandes:", audit.purchases)
 
     return pdf.output(dest='S')

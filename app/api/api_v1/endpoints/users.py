@@ -98,7 +98,8 @@ async def read_users(
     limit: int = 100,
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
-    if current_user.role != UserRole.ADMIN:
+    has_read_rights = current_user.rights and current_user.rights.users_read
+    if current_user.role != UserRole.ADMIN and not has_read_rights:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not enough privileges")
     result = await db.execute(
         select(User)
@@ -116,7 +117,8 @@ async def read_user_by_id(
     current_user: User = Depends(deps.get_current_user),
     db: AsyncSession = Depends(deps.get_db),
 ) -> Any:
-    if current_user.role != UserRole.ADMIN and current_user.id != user_id:
+    has_read_rights = current_user.rights and current_user.rights.users_read
+    if current_user.role != UserRole.ADMIN and current_user.id != user_id and not has_read_rights:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not enough privileges")
     user = await _load_user(db, user_id)
     if not user:
@@ -139,7 +141,8 @@ async def create_user(
     user_in: schemas.UserCreate,
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
-    if current_user.role != UserRole.ADMIN:
+    has_create_rights = current_user.rights and current_user.rights.users_create
+    if current_user.role != UserRole.ADMIN and not has_create_rights:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not enough privileges")
 
     result = await db.execute(select(User).where(User.email == user_in.email))
@@ -184,7 +187,8 @@ async def update_user(
     user_in: schemas.UserUpdate,
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
-    if current_user.role != UserRole.ADMIN:
+    has_update_rights = current_user.rights and current_user.rights.users_update
+    if current_user.role != UserRole.ADMIN and not has_update_rights:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not enough privileges")
 
     user = await _load_user(db, user_id)
@@ -225,7 +229,8 @@ async def delete_user(
     user_id: int,
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
-    if current_user.role != UserRole.ADMIN:
+    has_delete_rights = current_user.rights and current_user.rights.users_delete
+    if current_user.role != UserRole.ADMIN and not has_delete_rights:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not enough privileges")
 
     user = await _load_user(db, user_id)
