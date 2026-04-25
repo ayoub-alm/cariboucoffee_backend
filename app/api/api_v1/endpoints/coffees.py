@@ -19,10 +19,6 @@ async def read_coffees(
     """
     Retrieve coffees.
     """
-    # Check permissions
-    has_read_rights = current_user.rights and current_user.rights.coffees_read
-    if current_user.role not in (UserRole.ADMIN, UserRole.BOSS, UserRole.MANAGER) and not has_read_rights:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
 
     query = select(Coffee).offset(skip).limit(limit)
     result = await db.execute(query)

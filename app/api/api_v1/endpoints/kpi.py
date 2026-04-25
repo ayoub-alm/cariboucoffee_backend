@@ -76,8 +76,14 @@ async def read_kpi(
     average_score = result.scalar() or 0.0
 
     # 4. Compliance rate
+    # Fetch thresholds
+    from app.models.models import ConformityThreshold
+    t_result = await db.execute(select(ConformityThreshold).limit(1))
+    thresholds = t_result.scalars().first()
+    conforme_min = thresholds.conforme_min if thresholds else 80.0
+
     compliant_query = _apply_role_filter(
-        select(func.count(Audit.id)).where(Audit.score >= 80), current_user
+        select(func.count(Audit.id)).where(Audit.score >= conforme_min), current_user
     )
     result = await db.execute(compliant_query)
     compliant_count = result.scalar() or 0

@@ -18,10 +18,6 @@ async def read_categories(
     limit: int = 100,
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
-    # Check permissions
-    has_read_rights = current_user.rights and current_user.rights.categories_read
-    if current_user.role not in (UserRole.ADMIN, UserRole.BOSS, UserRole.AUDITOR) and not has_read_rights:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
 
     query = (
         select(AuditCategory)

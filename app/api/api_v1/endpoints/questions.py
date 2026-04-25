@@ -20,10 +20,6 @@ async def read_questions(
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
     """Retrieve audit questions ordered by display_order."""
-    has_read_rights = current_user.rights and current_user.rights.questions_read
-    if current_user.role not in (UserRole.ADMIN, UserRole.BOSS, UserRole.AUDITOR) and not has_read_rights:
-        from fastapi import status
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
 
     query = (
         select(AuditQuestion)

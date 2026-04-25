@@ -345,14 +345,14 @@ async def update_audit(
     if not audit:
         raise HTTPException(status_code=404, detail="Audit not found")
         
+    is_owner = audit.auditor_id == current_user.id
     has_update_rights = current_user.rights and current_user.rights.audits_update
-    if current_user.role == UserRole.ADMIN or has_update_rights:
+    
+    # Permission Logic:
+    # 1. Admin or user with explicit update rights can update any audit
+    # 2. The creator (owner) can always update their own audit
+    if current_user.role == UserRole.ADMIN or has_update_rights or is_owner:
         pass
-    elif current_user.role == UserRole.AUDITOR:
-        if audit.auditor_id != current_user.id:
-            raise HTTPException(status_code=403, detail="Not enough permissions")
-        if audit.status == AuditStatus.COMPLETED:
-            raise HTTPException(status_code=403, detail="Completed audits cannot be modified")
     else:
         raise HTTPException(status_code=403, detail="Not enough permissions")
 

@@ -174,3 +174,11 @@ class AuditAnswer(Base):
     
     audit = relationship("Audit", back_populates="answers")
     question = relationship("AuditQuestion", back_populates="answers")
+
+class ConformityThreshold(Base):
+    __tablename__ = "conformity_thresholds"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    conforme_min = Column(Float, default=90.0)
+    partiel_min = Column(Float, default=70.0)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())

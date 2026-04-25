@@ -237,3 +237,19 @@ class UserRightsUpdate(BaseModel):
     users:      Optional[ModulePermissions] = None
     categories: Optional[ModulePermissions] = None
     questions:  Optional[ModulePermissions] = None
+
+# --- Conformity Threshold Schemas ---
+class ConformityThresholdBase(BaseModel):
+    conforme_min: float = 90.0
+    partiel_min: float = 70.0
+
+class ConformityThresholdUpdate(BaseModel):
+    conforme_min: Optional[float] = None
+    partiel_min: Optional[float] = None
+
+class ConformityThresholdResponse(ConformityThresholdBase):
+    id: int
+    updated_at: datetime.datetime
+
+    class Config:
+        from_attributes = True
