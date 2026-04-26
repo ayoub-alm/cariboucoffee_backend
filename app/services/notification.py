@@ -1,19 +1,23 @@
+import aiosmtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from datetime import datetime, timedelta, timezone
+from sqlalchemy.future import select
+from sqlalchemy.orm import selectinload
+from typing import List
+
 from app.core import config
 from app.db import session
 from app.models import Audit, User, AuditAnswer
-from sqlalchemy.future import select
-from sqlalchemy.orm import selectinload
-from sqlalchemy import func
-from datetime import datetime, timedelta, timezone
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+import logging
 
-# ──────────────────────────────────────────────
-# Config — read from environment, never hardcoded here
-# ──────────────────────────────────────────────
-
-
+# Set up logger for cron jobs
+cron_logger = logging.getLogger("cron_service")
+if not cron_logger.handlers:
+    handler = logging.FileHandler("cron_jobs.log")
+    handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
+    cron_logger.addHandler(handler)
+    cron_logger.setLevel(logging.INFO)
 
 # ──────────────────────────────────────────────
 # HTML template helpers
@@ -42,22 +46,22 @@ def _score_label(score: float) -> str:
 
 def _non_conform_count(audit: Audit) -> int:
     count = 0
+    if not audit.answers:
+        return 0
     for ans in audit.answers:
         correct = ans.question.correct_answer if ans.question else "oui"
         if ans.choice and ans.choice != "n/a" and ans.choice != correct:
             count += 1
     return count
 
-
 # ──────────────────────────────────────────────
 # HTML email body builder
 # ──────────────────────────────────────────────
 
-def _build_html(audits: list[Audit], period_label: str, now: datetime) -> str:
+def _build_html(audits: List[Audit], period_label: str, now: datetime) -> str:
     total = len(audits)
     avg_score = (sum(a.score for a in audits) / total) if total else 0
     conformes  = sum(1 for a in audits if a.score >= 85)
-    partiels   = sum(1 for a in audits if 70 <= a.score < 85)
     total_nc_questions = sum(_non_conform_count(a) for a in audits)
 
     # ── Audit rows ──
@@ -123,288 +127,208 @@ def _build_html(audits: list[Audit], period_label: str, now: datetime) -> str:
   <title>Rapport d'Audit Caribou Coffee</title>
 </head>
 <body style="margin:0;padding:0;background:#f4f6f9;font-family:'Segoe UI',Arial,sans-serif;">
-
-  <!-- outer wrapper -->
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f9;padding:32px 0;">
     <tr><td align="center">
-      <!-- card -->
-      <table width="680" cellpadding="0" cellspacing="0"
-             style="background:#ffffff;border-radius:12px;
-                    box-shadow:0 2px 12px rgba(0,0,0,0.08);overflow:hidden;">
-
-        <!-- ── HEADER ── -->
+      <table width="680" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,0.08);overflow:hidden;">
         <tr>
-          <td style="background:linear-gradient(135deg,#006241 0%,#004d33 100%);
-                     padding:36px 40px;text-align:center;">
-            <div style="font-size:28px;font-weight:800;color:#fff;letter-spacing:-0.5px;">
-              ☕ Caribou Coffee
-            </div>
-            <div style="font-size:15px;color:rgba(255,255,255,0.85);margin-top:6px;">
-              Rapport d'Audit — {period_label}
-            </div>
-            <div style="font-size:12px;color:rgba(255,255,255,0.6);margin-top:4px;">
-              Généré le {now.strftime("%d/%m/%Y à %H:%M")}
-            </div>
+          <td style="background:linear-gradient(135deg,#006241 0%,#004d33 100%);padding:36px 40px;text-align:center;">
+            <div style="font-size:28px;font-weight:800;color:#fff;letter-spacing:-0.5px;">☕ Caribou Coffee</div>
+            <div style="font-size:15px;color:rgba(255,255,255,0.85);margin-top:6px;">Rapport d'Audit — {period_label}</div>
+            <div style="font-size:12px;color:rgba(255,255,255,0.6);margin-top:4px;">Généré le {now.strftime("%d/%m/%Y à %H:%M")}</div>
           </td>
         </tr>
-
-        <!-- ── KPI SUMMARY ── -->
         <tr>
           <td style="padding:32px 40px 16px;">
             <table width="100%" cellpadding="0" cellspacing="0">
               <tr>
-
-                <!-- Total audits -->
-                <td width="25%" style="text-align:center;padding:16px 8px;
-                    background:#f8f9fa;border-radius:10px;margin:4px;">
+                <td width="25%" style="text-align:center;padding:16px 8px;background:#f8f9fa;border-radius:10px;">
                   <div style="font-size:32px;font-weight:800;color:#006241;">{total}</div>
-                  <div style="font-size:12px;color:#757575;margin-top:4px;text-transform:uppercase;letter-spacing:.5px;">
-                    Total audits
-                  </div>
+                  <div style="font-size:12px;color:#757575;text-transform:uppercase;">Total audits</div>
                 </td>
-
-                <!-- Average score -->
                 <td width="4%"></td>
-                <td width="25%" style="text-align:center;padding:16px 8px;
-                    background:{_score_badge_bg(avg_score)};border-radius:10px;">
-                  <div style="font-size:32px;font-weight:800;color:{_score_color(avg_score)};">
-                    {avg_score:.0f}%
-                  </div>
-                  <div style="font-size:12px;color:#757575;margin-top:4px;text-transform:uppercase;letter-spacing:.5px;">
-                    Score moyen
-                  </div>
+                <td width="25%" style="text-align:center;padding:16px 8px;background:{_score_badge_bg(avg_score)};border-radius:10px;">
+                  <div style="font-size:32px;font-weight:800;color:{_score_color(avg_score)};">{avg_score:.0f}%</div>
+                  <div style="font-size:12px;color:#757575;text-transform:uppercase;">Score moyen</div>
                 </td>
-
-                <!-- Conformes -->
                 <td width="4%"></td>
-                <td width="25%" style="text-align:center;padding:16px 8px;
-                    background:#e8f5e9;border-radius:10px;">
+                <td width="25%" style="text-align:center;padding:16px 8px;background:#e8f5e9;border-radius:10px;">
                   <div style="font-size:32px;font-weight:800;color:#2e7d32;">{conformes}</div>
-                  <div style="font-size:12px;color:#757575;margin-top:4px;text-transform:uppercase;letter-spacing:.5px;">
-                    ✔ Conformes
-                  </div>
+                  <div style="font-size:12px;color:#757575;text-transform:uppercase;">✔ Conformes</div>
                 </td>
-
-                <!-- Non-conformes questions -->
                 <td width="4%"></td>
-                <td width="25%" style="text-align:center;padding:16px 8px;
-                    background:#ffebee;border-radius:10px;">
+                <td width="25%" style="text-align:center;padding:16px 8px;background:#ffebee;border-radius:10px;">
                   <div style="font-size:32px;font-weight:800;color:#c62828;">{total_nc_questions}</div>
-                  <div style="font-size:12px;color:#757575;margin-top:4px;text-transform:uppercase;letter-spacing:.5px;">
-                    ✗ Questions NC
-                  </div>
+                  <div style="font-size:12px;color:#757575;text-transform:uppercase;">✗ Questions NC</div>
                 </td>
-
               </tr>
             </table>
           </td>
         </tr>
-
-        <!-- ── AUDIT TABLE ── -->
         <tr>
           <td style="padding:24px 40px 8px;">
-            <div style="font-size:16px;font-weight:700;color:#212121;margin-bottom:14px;
-                        border-left:4px solid #006241;padding-left:12px;">
-              Détail des audits
-            </div>
-            <table width="100%" cellpadding="0" cellspacing="0"
-                   style="border:1px solid #e8eaed;border-radius:8px;overflow:hidden;">
+            <div style="font-size:16px;font-weight:700;color:#212121;margin-bottom:14px;border-left:4px solid #006241;padding-left:12px;">Détail des audits</div>
+            <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e8eaed;border-radius:8px;overflow:hidden;">
               <thead>
                 <tr style="background:#f8f9fa;">
-                  <th style="padding:11px 14px;text-align:left;font-size:12px;color:#5f6368;
-                              font-weight:600;text-transform:uppercase;letter-spacing:.5px;
-                              border-bottom:1px solid #e8eaed;">Établissement</th>
-                  <th style="padding:11px 14px;text-align:left;font-size:12px;color:#5f6368;
-                              font-weight:600;text-transform:uppercase;letter-spacing:.5px;
-                              border-bottom:1px solid #e8eaed;">Auditeur</th>
-                  <th style="padding:11px 14px;font-size:12px;color:#5f6368;
-                              font-weight:600;text-transform:uppercase;letter-spacing:.5px;
-                              border-bottom:1px solid #e8eaed;">Date</th>
-                  <th style="padding:11px 14px;text-align:center;font-size:12px;color:#5f6368;
-                              font-weight:600;text-transform:uppercase;letter-spacing:.5px;
-                              border-bottom:1px solid #e8eaed;">Score</th>
-                  <th style="padding:11px 18px;text-align:center;font-size:12px;color:#5f6368;
-                              font-weight:600;text-transform:uppercase;letter-spacing:.5px;
-                              border-bottom:1px solid #e8eaed;white-space:nowrap;">NC</th>
-                  <th style="padding:11px 18px;text-align:center;font-size:12px;color:#5f6368;
-                              font-weight:600;text-transform:uppercase;letter-spacing:.5px;
-                              border-bottom:1px solid #e8eaed;white-space:nowrap;">Action</th>
+                  <th style="padding:11px 14px;text-align:left;font-size:12px;color:#5f6368;font-weight:600;text-transform:uppercase;">Établissement</th>
+                  <th style="padding:11px 14px;text-align:left;font-size:12px;color:#5f6368;font-weight:600;text-transform:uppercase;">Auditeur</th>
+                  <th style="padding:11px 14px;font-size:12px;color:#5f6368;font-weight:600;text-transform:uppercase;">Date</th>
+                  <th style="padding:11px 14px;text-align:center;font-size:12px;color:#5f6368;font-weight:600;text-transform:uppercase;">Score</th>
+                  <th style="padding:11px 18px;text-align:center;font-size:12px;color:#5f6368;font-weight:600;text-transform:uppercase;">NC</th>
+                  <th style="padding:11px 18px;text-align:center;font-size:12px;color:#5f6368;font-weight:600;text-transform:uppercase;">Action</th>
                 </tr>
               </thead>
-              <tbody>
-                {rows_html or empty_msg}
-              </tbody>
+              <tbody>{rows_html or empty_msg}</tbody>
             </table>
           </td>
         </tr>
-
-        <!-- ── CTA BUTTON ── -->
         <tr>
           <td style="padding:28px 40px;text-align:center;">
-            <a href="{config.settings.FRONTEND_URL}/audits"
-               style="background:linear-gradient(135deg,#006241,#004d33);
-                      color:#fff;padding:14px 36px;border-radius:8px;
-                      text-decoration:none;font-size:15px;font-weight:700;
-                      letter-spacing:.3px;display:inline-block;">
-              Ouvrir le tableau de bord →
-            </a>
+            <a href="{config.settings.FRONTEND_URL}/audits" style="background:linear-gradient(135deg,#006241,#004d33);color:#fff;padding:14px 36px;border-radius:8px;text-decoration:none;font-size:15px;font-weight:700;display:inline-block;">Ouvrir le tableau de bord →</a>
           </td>
         </tr>
-
-        <!-- ── FOOTER ── -->
         <tr>
-          <td style="background:#f8f9fa;padding:20px 40px;
-                     border-top:1px solid #e8eaed;text-align:center;">
-            <div style="font-size:12px;color:#9e9e9e;">
-              Caribou Coffee — Système de gestion des audits qualité<br>
-              Cet email a été généré automatiquement. Ne pas répondre directement.
-            </div>
+          <td style="background:#f8f9fa;padding:20px 40px;border-top:1px solid #e8eaed;text-align:center;">
+            <div style="font-size:12px;color:#9e9e9e;">Caribou Coffee — Système de gestion des audits qualité<br>Cet email a été généré automatiquement. Ne pas répondre directement.</div>
           </td>
         </tr>
-
       </table>
     </td></tr>
   </table>
-
 </body>
 </html>
 """
 
-
 # ──────────────────────────────────────────────
-# Main send function
+# Async Email Logic
 # ──────────────────────────────────────────────
 
-async def send_weekly_report():
-    """
-    Query the last 7 days of audits, build a rich HTML email, and send it
-    to every user who has `receive_weekly_report = True`.
-    """
-    now = datetime.now(timezone.utc)
-    week_ago = now - timedelta(days=7)
-    period_label = f"{week_ago.strftime('%d/%m/%Y')} – {now.strftime('%d/%m/%Y')}"
-
-    async with session.SessionLocal() as db:
-        # ── Fetch audits from last 7 days with all relations ──
-        result = await db.execute(
-            select(Audit)
-            .options(
-                selectinload(Audit.coffee),
-                selectinload(Audit.auditor),
-                selectinload(Audit.answers).selectinload(AuditAnswer.question),
-            )
-            .where(Audit.created_at >= week_ago)
-            .order_by(Audit.created_at.desc())
-        )
-        audits = result.scalars().all()
-
-        # ── Fetch recipients ──
-        recipients_result = await db.execute(
-            select(User).where(User.receive_weekly_report == True, User.is_active == True)
-        )
-        recipients = recipients_result.scalars().all()
-
+async def _send_async_email(subject: str, recipients: List[User], html_body: str, plain_body: str):
+    """Sends email asynchronously to a list of recipients."""
     if not recipients:
-        print("No recipients configured for weekly report. Skipping.")
         return
-
-    html_body = _build_html(audits, period_label, now)
-    plain_body = (
-        f"Rapport d'audit Caribou Coffee — {period_label}\n\n"
-        f"Total audits: {len(audits)}\n"
-        f"Score moyen: {(sum(a.score for a in audits)/len(audits)):.0f}%\n\n"
-        f"Consultez le tableau de bord: {config.settings.FRONTEND_URL}/audits"
-    ) if audits else "Aucun audit enregistré cette semaine."
-
-    subject = f"[Caribou Coffee] Rapport d'audit hebdomadaire — {period_label}"
 
     errors = []
     for user in recipients:
         try:
-            msg = MIMEMultipart("alternative")
-            msg["Subject"] = subject
-            msg["From"]    = f"{config.settings.EMAILS_FROM_NAME} <{config.settings.EMAILS_FROM_EMAIL}>"
-            msg["To"]      = user.email
+            message = MIMEMultipart("alternative")
+            message["Subject"] = subject
+            message["From"] = f"{config.settings.EMAILS_FROM_NAME} <{config.settings.EMAILS_FROM_EMAIL}>"
+            message["To"] = user.email
 
-            msg.attach(MIMEText(plain_body, "plain", "utf-8"))
-            msg.attach(MIMEText(html_body,  "html",  "utf-8"))
+            message.attach(MIMEText(plain_body, "plain", "utf-8"))
+            message.attach(MIMEText(html_body, "html", "utf-8"))
 
-            with smtplib.SMTP(config.settings.SMTP_HOST, config.settings.SMTP_PORT, timeout=10) as server:
-                server.ehlo()
-                server.starttls()
-                server.ehlo()
-                server.login(config.settings.SMTP_USER, config.settings.SMTP_PASSWORD)
-                server.sendmail(config.settings.EMAILS_FROM_EMAIL, user.email, msg.as_string())
-
-            print(f"[EMAIL] Sent weekly report to {user.email}")
-
+            await aiosmtplib.send(
+                message,
+                hostname=config.settings.SMTP_HOST,
+                port=config.settings.SMTP_PORT,
+                username=config.settings.SMTP_USER,
+                password=config.settings.SMTP_PASSWORD,
+                use_tls=False,
+                start_tls=True,
+                timeout=10
+            )
+            cron_logger.info(f"Email sent successfully to {user.email}")
         except Exception as e:
-            print(f"[EMAIL ERROR] Failed to send to {user.email}: {e}")
+            cron_logger.error(f"Failed to send email to {user.email}: {e}")
             errors.append(str(e))
-
+    
     if errors:
-        raise RuntimeError(f"Some emails failed: {errors}")
+        print(f"Total email errors: {len(errors)}")
 
-async def send_user_report(user_id: int, days: int):
-    """
-    Send a report for the last N days to a specific user.
-    """
+async def _get_report_data(db, days: int):
+    """Fetch audits for the last N days."""
     now = datetime.now(timezone.utc)
     start_date = now - timedelta(days=days)
     
-    label_map = {1: "Journalier", 7: "Hebdomadaire", 30: "Mensuel"}
-    period_type = label_map.get(days, f"Derniers {days} jours")
-    period_label = f"{start_date.strftime('%d/%m/%Y')} – {now.strftime('%d/%m/%Y')}"
+    result = await db.execute(
+        select(Audit)
+        .options(
+            selectinload(Audit.coffee),
+            selectinload(Audit.auditor),
+            selectinload(Audit.answers).selectinload(AuditAnswer.question),
+        )
+        .where(Audit.created_at >= start_date)
+        .order_by(Audit.created_at.desc())
+    )
+    return result.scalars().all(), start_date, now
 
+# ──────────────────────────────────────────────
+# Public Service Functions
+# ──────────────────────────────────────────────
+
+async def send_daily_report():
+    """Automated daily report trigger."""
+    cron_logger.info("Starting Daily Report task...")
     async with session.SessionLocal() as db:
-        # Load user
+        audits, start, now = await _get_report_data(db, 1)
+        recipients_result = await db.execute(
+            select(User).where(User.receive_daily_report == True, User.is_active == True)
+        )
+        recipients = recipients_result.scalars().all()
+        
+        if not recipients: return
+
+        period_label = f"Journalier ({start.strftime('%d/%m/%Y')})"
+        subject = f"[Caribou Coffee] Rapport d'audit journalier — {start.strftime('%d/%m/%Y')}"
+        html_body = _build_html(audits, period_label, now)
+        plain_body = f"Rapport journalier Caribou Coffee: {len(audits)} audits."
+        
+        await _send_async_email(subject, recipients, html_body, plain_body)
+
+async def send_weekly_report():
+    """Automated weekly report trigger."""
+    cron_logger.info("Starting Weekly Report task...")
+    async with session.SessionLocal() as db:
+        audits, start, now = await _get_report_data(db, 7)
+        recipients_result = await db.execute(
+            select(User).where(User.receive_weekly_report == True, User.is_active == True)
+        )
+        recipients = recipients_result.scalars().all()
+        
+        if not recipients: return
+
+        period_label = f"Hebdomadaire ({start.strftime('%d/%m/%Y')} – {now.strftime('%d/%m/%Y')})"
+        subject = f"[Caribou Coffee] Rapport d'audit hebdomadaire — {period_label}"
+        html_body = _build_html(audits, period_label, now)
+        plain_body = f"Rapport hebdomadaire Caribou Coffee: {len(audits)} audits."
+        
+        await _send_async_email(subject, recipients, html_body, plain_body)
+
+async def send_monthly_report():
+    """Automated monthly report trigger."""
+    async with session.SessionLocal() as db:
+        audits, start, now = await _get_report_data(db, 30)
+        recipients_result = await db.execute(
+            select(User).where(User.receive_monthly_report == True, User.is_active == True)
+        )
+        recipients = recipients_result.scalars().all()
+        
+        if not recipients: return
+
+        period_label = f"Mensuel ({start.strftime('%B %Y')})"
+        subject = f"[Caribou Coffee] Rapport d'audit mensuel — {start.strftime('%B %Y')}"
+        html_body = _build_html(audits, period_label, now)
+        plain_body = f"Rapport mensuel Caribou Coffee: {len(audits)} audits."
+        
+        await _send_async_email(subject, recipients, html_body, plain_body)
+
+async def send_user_report(user_id: int, days: int):
+    """Manual trigger for a specific user (used by API)."""
+    async with session.SessionLocal() as db:
         user_result = await db.execute(select(User).where(User.id == user_id))
         user = user_result.scalars().first()
-        if not user or not user.is_active:
-            print(f"User {user_id} not found or inactive. Skipping.")
-            return
+        if not user or not user.is_active: return
 
-        # Fetch audits
-        result = await db.execute(
-            select(Audit)
-            .options(
-                selectinload(Audit.coffee),
-                selectinload(Audit.auditor),
-                selectinload(Audit.answers).selectinload(AuditAnswer.question),
-            )
-            .where(Audit.created_at >= start_date)
-            .order_by(Audit.created_at.desc())
-        )
-        audits = result.scalars().all()
-
-    html_body = _build_html(audits, f"{period_type} ({period_label})", now)
-    plain_body = (
-        f"Rapport d'audit Caribou Coffee — {period_type}\n\n"
-        f"Période: {period_label}\n"
-        f"Total audits: {len(audits)}\n"
-        f"Score moyen: {(sum(a.score for a in audits)/len(audits)):.0f}%\n\n"
-        f"Consultez le tableau de bord: {config.settings.FRONTEND_URL}/audits"
-    ) if audits else f"Aucun audit enregistré pour la période : {period_label}"
-
-    subject = f"[Caribou Coffee] Rapport d'audit {period_type.lower()} — {period_label}"
-
-    try:
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = subject
-        msg["From"]    = f"{config.settings.EMAILS_FROM_NAME} <{config.settings.EMAILS_FROM_EMAIL}>"
-        msg["To"]      = user.email
-
-        msg.attach(MIMEText(plain_body, "plain", "utf-8"))
-        msg.attach(MIMEText(html_body,  "html",  "utf-8"))
-
-        with smtplib.SMTP(config.settings.SMTP_HOST, config.settings.SMTP_PORT, timeout=10) as server:
-            server.ehlo()
-            server.starttls()
-            server.ehlo()
-            server.login(config.settings.SMTP_USER, config.settings.SMTP_PASSWORD)
-            server.sendmail(config.settings.EMAILS_FROM_EMAIL, user.email, msg.as_string())
-
-        print(f"[EMAIL] Sent instant {period_type.lower()} report to {user.email}")
-    except Exception as e:
-        print(f"[EMAIL ERROR] Failed to send instant report to {user.email}: {e}")
-        raise e
+        audits, start, now = await _get_report_data(db, days)
+        
+        label_map = {1: "Journalier", 7: "Hebdomadaire", 30: "Mensuel"}
+        period_type = label_map.get(days, f"Derniers {days} jours")
+        period_label = f"{period_type} ({start.strftime('%d/%m/%Y')} – {now.strftime('%d/%m/%Y')})"
+        
+        subject = f"[Caribou Coffee] Rapport d'audit {period_type.lower()} — {start.strftime('%d/%m/%Y')}"
+        html_body = _build_html(audits, period_label, now)
+        plain_body = f"Rapport {period_type.lower()} Caribou Coffee."
+        
+        await _send_async_email(subject, [user], html_body, plain_body)

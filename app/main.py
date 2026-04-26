@@ -4,7 +4,7 @@ from fastapi.staticfiles import StaticFiles
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from app.api.api_v1.api import api_router
 from app.core.config import settings
-from app.services.notification import send_weekly_report
+from app.services.notification import send_weekly_report, send_daily_report, send_monthly_report
 from app.db.session import engine, SessionLocal
 from app.db.base import Base
 from app.models import User, UserRole, Coffee, AuditCategory, AuditQuestion
@@ -106,8 +106,32 @@ async def startup_event():
             await db.commit()
             print(f"Seeded {len(AUDIT_CATEGORIES_DATA)} audit categories with questions")
 
-    # Start the scheduler
-    scheduler.add_job(send_weekly_report, "interval", weeks=1) # Run weekly
+    # Logging for scheduler
+    cron_logger = logging.getLogger("apscheduler")
+    cron_handler = logging.FileHandler("cron_jobs.log")
+    cron_handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(message)s"))
+    cron_logger.addHandler(cron_handler)
+
+    from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR
+
+    def job_listener(event):
+        if event.exception:
+            cron_logger.error(f"Job {event.job_id} FAILED: {event.exception}")
+        else:
+            cron_logger.info(f"Job {event.job_id} completed successfully.")
+
+    scheduler.add_listener(job_listener, EVENT_JOB_EXECUTED | EVENT_JOB_ERROR)
+
+    # Schedule automated reports
+    # Daily: Every day at 08:00
+    scheduler.add_job(send_daily_report, "cron", hour=8, minute=0, id="daily_report")
+    
+    # Weekly: Every Monday at 08:30
+    scheduler.add_job(send_weekly_report, "cron", day_of_week="mon", hour=8, minute=30, id="weekly_report")
+    
+    # Monthly: 1st of every month at 09:00
+    scheduler.add_job(send_monthly_report, "cron", day=1, hour=9, minute=0, id="monthly_report")
+    
     scheduler.start()
     print("Scheduler started!")
 
