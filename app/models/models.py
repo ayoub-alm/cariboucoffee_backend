@@ -175,6 +175,8 @@ class AuditAnswer(Base):
     audit = relationship("Audit", back_populates="answers")
     question = relationship("AuditQuestion", back_populates="answers")
 
+from sqlalchemy.orm import validates
+
 class ConformityThreshold(Base):
     __tablename__ = "conformity_thresholds"
     
@@ -182,3 +184,9 @@ class ConformityThreshold(Base):
     conforme_min = Column(Float, default=90.0)
     partiel_min = Column(Float, default=70.0)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())
+
+    @validates("conforme_min", "partiel_min")
+    def validate_min_value(self, key, value):
+        if value is None or value < 1.0:
+            return 1.0
+        return value

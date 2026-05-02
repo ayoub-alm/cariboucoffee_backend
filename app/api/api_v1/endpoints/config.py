@@ -54,6 +54,8 @@ async def update_conformity_thresholds(
         
     update_data = threshold_in.model_dump(exclude_unset=True)
     for field, value in update_data.items():
+        if value is None or value < 1.0:
+            value = 1.0
         setattr(thresholds, field, value)
         
     db.add(thresholds)

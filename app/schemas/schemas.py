@@ -240,12 +240,12 @@ class UserRightsUpdate(BaseModel):
 
 # --- Conformity Threshold Schemas ---
 class ConformityThresholdBase(BaseModel):
-    conforme_min: float = 90.0
-    partiel_min: float = 70.0
+    conforme_min: float = Field(90.0, ge=1.0)
+    partiel_min: float = Field(70.0, ge=1.0)
 
 class ConformityThresholdUpdate(BaseModel):
-    conforme_min: Optional[float] = None
-    partiel_min: Optional[float] = None
+    conforme_min: Optional[float] = Field(None, ge=1.0)
+    partiel_min: Optional[float] = Field(None, ge=1.0)
 
 class ConformityThresholdResponse(ConformityThresholdBase):
     id: int
