@@ -10,6 +10,7 @@ class UserRole(str, enum.Enum):
     MANAGER = "MANAGER"
     BOSS = "BOSS"
     VIEWER = "VIEWER"
+    CONTROLLER = "CONTROLLER"
 
 manager_coffees = Table(
     "manager_coffees",
@@ -26,6 +27,8 @@ class Coffee(Base):
     name = Column(String, index=True)
     location = Column(String)
     active = Column(Boolean, default=True)
+    opening_time = Column(String, nullable=True)
+    closing_time = Column(String, nullable=True)
 
     audits = relationship("Audit", back_populates="coffee")
     viewers = relationship("User", back_populates="assigned_coffee", foreign_keys="User.coffee_id")
@@ -190,3 +193,17 @@ class ConformityThreshold(Base):
         if value is None or value < 1.0:
             return 1.0
         return value
+
+class DailyTimeRecord(Base):
+    __tablename__ = "daily_time_records"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    date = Column(Date, nullable=False)
+    opening_time = Column(String, nullable=True)
+    closing_time = Column(String, nullable=True)
+    
+    coffee_id = Column(Integer, ForeignKey("coffees.id"), nullable=False)
+    controller_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    
+    coffee = relationship("Coffee")
+    controller = relationship("User")

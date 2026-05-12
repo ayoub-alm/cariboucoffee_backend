@@ -9,6 +9,7 @@ class UserRole(str, Enum):
     MANAGER = "MANAGER"
     BOSS = "BOSS"
     VIEWER = "VIEWER"
+    CONTROLLER = "CONTROLLER"
 
 # --- Bulk Actions ---
 class BulkDelete(BaseModel):
@@ -65,6 +66,8 @@ class PasswordReset(BaseModel):
 class CoffeeBase(BaseModel):
     name: str
     location: str
+    opening_time: Optional[str] = None
+    closing_time: Optional[str] = None
 
 class CoffeeCreate(CoffeeBase):
     ref: Optional[str] = None   # If not provided, auto-generated as CAF-XXX
@@ -75,6 +78,8 @@ class CoffeeUpdate(BaseModel):
     name: Optional[str] = None
     location: Optional[str] = None
     active: Optional[bool] = None
+    opening_time: Optional[str] = None
+    closing_time: Optional[str] = None
 
 class CoffeeResponse(CoffeeBase):
     id: int
@@ -214,6 +219,7 @@ class KPIData(BaseModel):
     total_coffee_shops: int
     audits_this_month: int
     average_score_this_month: float
+    timing_scores: dict[str, float] = {}  # Coffee name -> timing score (%)
 
 class Token(BaseModel):
     access_token: str
@@ -253,3 +259,25 @@ class ConformityThresholdResponse(ConformityThresholdBase):
 
     class Config:
         from_attributes = True
+
+# --- Daily Time Record Schemas ---
+class DailyTimeRecordBase(BaseModel):
+    date: datetime.date
+    opening_time: Optional[str] = None
+    closing_time: Optional[str] = None
+
+class DailyTimeRecordCreate(DailyTimeRecordBase):
+    coffee_id: int
+
+class DailyTimeRecordUpdate(BaseModel):
+    opening_time: Optional[str] = None
+    closing_time: Optional[str] = None
+
+class DailyTimeRecordResponse(DailyTimeRecordBase):
+    id: int
+    coffee_id: int
+    controller_id: int
+
+    class Config:
+        from_attributes = True
+

@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.api_v1.endpoints import auth, audits, kpi, users, coffees, categories, questions, notifications, user_rights, config
+from app.api.api_v1.endpoints import auth, audits, kpi, users, coffees, categories, questions, notifications, user_rights, config, daily_logs
 
 api_router = APIRouter()
 api_router.include_router(auth.router, tags=["login"])
@@ -12,3 +12,4 @@ api_router.include_router(users.router, prefix="/users", tags=["users"])
 api_router.include_router(notifications.router, prefix="/notifications", tags=["notifications"])
 api_router.include_router(user_rights.router, prefix="/user-rights", tags=["user-rights"])
 api_router.include_router(config.router, prefix="/config", tags=["config"])
+api_router.include_router(daily_logs.router, prefix="/daily-logs", tags=["daily-logs"])

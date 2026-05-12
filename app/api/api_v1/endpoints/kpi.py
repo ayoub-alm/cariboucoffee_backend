@@ -6,7 +6,7 @@ from sqlalchemy import func
 from datetime import datetime
 
 from app.api import deps
-from app.models.models import Audit, Coffee, User, UserRole, AuditAnswer, AuditQuestion, AuditCategory
+from app.models.models import Audit, Coffee, User, UserRole, AuditAnswer, AuditQuestion, AuditCategory, DailyTimeRecord
 from app.schemas import schemas
 
 router = APIRouter()
@@ -160,6 +160,28 @@ async def read_kpi(
         scores_per_category[cat_name] = round((total_val / total_weight) * 100, 2) if total_weight > 0 else 0.0
 
 
+    # 10. Timing scores per coffee for this month
+    timing_query = select(DailyTimeRecord, Coffee).join(Coffee, DailyTimeRecord.coffee_id == Coffee.id).where(DailyTimeRecord.date >= first_day_of_month.date())
+    timing_result = await db.execute(timing_query)
+    
+    coffee_timing_stats = {}
+    for record, coffee in timing_result.all():
+        if coffee.name not in coffee_timing_stats:
+            coffee_timing_stats[coffee.name] = {"total_score": 0, "count": 0}
+            
+        daily_score = 0
+        if record.opening_time and coffee.opening_time and record.opening_time <= coffee.opening_time:
+            daily_score += 50
+        if record.closing_time and coffee.closing_time and record.closing_time >= coffee.closing_time:
+            daily_score += 50
+            
+        coffee_timing_stats[coffee.name]["total_score"] += daily_score
+        coffee_timing_stats[coffee.name]["count"] += 1
+
+    timing_scores = {}
+    for c_name, stats in coffee_timing_stats.items():
+        timing_scores[c_name] = round(stats["total_score"] / stats["count"], 2) if stats["count"] > 0 else 0.0
+
     return {
         "total_audits": total_audits,
         "average_score": round(average_score, 2),
@@ -170,5 +192,6 @@ async def read_kpi(
         "compliance_rate": round(compliance_rate, 2),
         "total_coffee_shops": total_coffee_shops,
         "audits_this_month": audits_this_month,
-        "average_score_this_month": round(average_score_this_month, 2)
+        "average_score_this_month": round(average_score_this_month, 2),
+        "timing_scores": timing_scores
     }

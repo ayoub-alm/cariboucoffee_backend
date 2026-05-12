@@ -36,3 +36,4 @@ Thumbs.db
 # Local persistent data (DB + uploaded images)
 data/
 app.log
+cron_jobs.log
