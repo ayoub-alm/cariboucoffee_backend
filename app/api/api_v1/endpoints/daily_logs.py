@@ -1,4 +1,4 @@
-from typing import Any, List
+from typing import Any, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -15,17 +15,27 @@ async def read_daily_logs(
     db: AsyncSession = Depends(deps.get_db),
     skip: int = 0,
     limit: int = 100,
+    coffee_id: Optional[int] = None,
+    start_date: Optional[datetime.date] = None,
+    end_date: Optional[datetime.date] = None,
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
     """
-    Retrieve daily logs.
+    Retrieve daily logs with optional filters.
     """
-    if current_user.role == UserRole.CONTROLLER:
-        query = select(DailyTimeRecord).where(DailyTimeRecord.controller_id == current_user.id).offset(skip).limit(limit)
-    elif current_user.role in [UserRole.ADMIN, UserRole.BOSS]:
-        query = select(DailyTimeRecord).offset(skip).limit(limit)
-    else:
+    query = select(DailyTimeRecord)
+
+    if current_user.role not in [UserRole.ADMIN, UserRole.BOSS, UserRole.CONTROLLER]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
+
+    if coffee_id is not None:
+        query = query.where(DailyTimeRecord.coffee_id == coffee_id)
+    if start_date is not None:
+        query = query.where(DailyTimeRecord.date >= start_date)
+    if end_date is not None:
+        query = query.where(DailyTimeRecord.date <= end_date)
+
+    query = query.order_by(DailyTimeRecord.date.desc()).offset(skip).limit(limit)
 
     result = await db.execute(query)
     logs = result.scalars().all()

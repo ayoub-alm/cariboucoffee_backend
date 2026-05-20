@@ -74,6 +74,12 @@ async def read_audits(
     db: AsyncSession = Depends(deps.get_db),
     skip: int = 0,
     limit: int = 10000,
+    start_date: str | None = None,
+    end_date: str | None = None,
+    coffee_id: int | None = None,
+    coffee_shop: str | None = None,
+    auditor_id: int | None = None,
+    auditor_name: str | None = None,
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
     """
@@ -83,11 +89,14 @@ async def read_audits(
     - Viewer: Audits for their assigned coffee
     """
     try:
+        from datetime import datetime, date
+        from app.models.models import Coffee, User as DBUser
+
         query = select(Audit).options(
             selectinload(Audit.coffee),
             selectinload(Audit.auditor),
             selectinload(Audit.answers).selectinload(AuditAnswer.question).selectinload(AuditQuestion.category).selectinload(AuditCategory.questions)
-        ).order_by(Audit.date.desc(), Audit.created_at.desc()).offset(skip).limit(limit)
+        )
 
         has_read_rights = current_user.rights and current_user.rights.audits_read
         if current_user.role in (UserRole.ADMIN, UserRole.BOSS) or has_read_rights:
@@ -109,6 +118,45 @@ async def read_audits(
             # Fallback for roles like MANAGER without explicit rights (handled by business logic above already)
             # but if something else hits here, return empty
             return []
+
+        # Apply Filters
+        if start_date:
+            try:
+                dt = datetime.fromisoformat(start_date.replace("Z", "+00:00")).date()
+                query = query.where(Audit.date >= dt)
+            except ValueError:
+                try:
+                    dt = datetime.strptime(start_date, "%Y-%m-%d").date()
+                    query = query.where(Audit.date >= dt)
+                except ValueError:
+                    pass
+
+        if end_date:
+            try:
+                dt = datetime.fromisoformat(end_date.replace("Z", "+00:00")).date()
+                query = query.where(Audit.date <= dt)
+            except ValueError:
+                try:
+                    dt = datetime.strptime(end_date, "%Y-%m-%d").date()
+                    query = query.where(Audit.date <= dt)
+                except ValueError:
+                    pass
+
+        if coffee_id:
+            query = query.where(Audit.coffee_id == coffee_id)
+
+        if coffee_shop:
+            query = query.join(Audit.coffee).where(Coffee.name == coffee_shop)
+
+        if auditor_id:
+            query = query.where(Audit.auditor_id == auditor_id)
+
+        if auditor_name:
+            query = query.join(Audit.auditor).where(
+                (DBUser.full_name == auditor_name) | (DBUser.email == auditor_name)
+            )
+
+        query = query.order_by(Audit.date.desc(), Audit.created_at.desc()).offset(skip).limit(limit)
         
         result = await db.execute(query)
         audits = result.scalars().all()
