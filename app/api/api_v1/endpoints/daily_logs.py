@@ -167,3 +167,26 @@ async def create_daily_log(
         "score":         score,
         "status":        status_label,
     }
+
+
+@router.delete("/{id}")
+async def delete_daily_log(
+    *,
+    db: AsyncSession = Depends(deps.get_db),
+    id: int,
+    current_user: User = Depends(deps.get_current_user),
+) -> Any:
+    """Delete a daily log. Admin only."""
+    if current_user.role != UserRole.ADMIN:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only administrators can delete daily logs")
+
+    query = select(DailyTimeRecord).where(DailyTimeRecord.id == id)
+    result = await db.execute(query)
+    log = result.scalars().first()
+    
+    if not log:
+        raise HTTPException(status_code=404, detail="Daily log not found")
+
+    await db.delete(log)
+    await db.commit()
+    return {"message": "Daily log deleted successfully", "id": id}
