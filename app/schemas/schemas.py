@@ -281,3 +281,30 @@ class DailyTimeRecordResponse(DailyTimeRecordBase):
     class Config:
         from_attributes = True
 
+
+# --- Schedule Threshold Schemas ---
+class ScheduleThresholdBase(BaseModel):
+    green_min:  float = Field(100.0, ge=1.0, le=100.0)
+    orange_min: float = Field(90.0,  ge=1.0, le=100.0)
+
+class ScheduleThresholdUpdate(BaseModel):
+    green_min:  Optional[float] = Field(None, ge=1.0, le=100.0)
+    orange_min: Optional[float] = Field(None, ge=1.0, le=100.0)
+
+class ScheduleThresholdResponse(ScheduleThresholdBase):
+    id: int
+    updated_at: datetime.datetime
+
+    class Config:
+        from_attributes = True
+
+# --- Enriched Daily Time Record (with backend-computed score) ---
+class DailyTimeRecordEnriched(DailyTimeRecordBase):
+    id: int
+    coffee_id: int
+    controller_id: int
+    score: float                  # computed by backend
+    status: str                   # "green" | "orange" | "red"
+
+    class Config:
+        from_attributes = True

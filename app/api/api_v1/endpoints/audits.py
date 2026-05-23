@@ -99,12 +99,15 @@ async def read_audits(
         )
 
         has_read_rights = current_user.rights and current_user.rights.audits_read
-        if current_user.role in (UserRole.ADMIN, UserRole.BOSS) or has_read_rights:
-            # Full access if ADMIN/BOSS or explicit audits_read permission
+        if current_user.role in (UserRole.ADMIN, UserRole.BOSS):
+            # Full access for admins and bosses
             pass
         elif current_user.role == UserRole.AUDITOR:
-            # Auditor sees their own
+            # Auditors ALWAYS see only their own audits, rights cannot override this
             query = query.where(Audit.auditor_id == current_user.id)
+        elif has_read_rights:
+            # Other roles with explicit read rights get full access
+            pass
         elif current_user.role == UserRole.MANAGER:
             managed_ids = [c.id for c in current_user.managed_coffees] if current_user.managed_coffees else []
             if not managed_ids:
@@ -115,8 +118,6 @@ async def read_audits(
                 return []
             query = query.where(Audit.coffee_id == current_user.coffee_id)
         else:
-            # Fallback for roles like MANAGER without explicit rights (handled by business logic above already)
-            # but if something else hits here, return empty
             return []
 
         # Apply Filters
