@@ -207,6 +207,15 @@ class AuditResponse(BaseModel):
     class Config:
         from_attributes = True
 
+class AuditListResponse(BaseModel):
+    """Paginated wrapper returned by GET /audits."""
+    items: List[AuditResponse]
+    total: int
+    page: int
+    size: int
+    pages: int
+    average_score: float = 0.0
+
 # --- KPI Schemas ---
 class KPIData(BaseModel):
     total_audits: int
@@ -308,3 +317,18 @@ class DailyTimeRecordEnriched(DailyTimeRecordBase):
 
     class Config:
         from_attributes = True
+
+
+# --- Paginated wrapper for GET /daily-logs ---
+class DailyLogListResponse(BaseModel):
+    items: List[DailyTimeRecordEnriched]
+    total: int
+    page: int
+    size: int
+    pages: int
+    # Pre-computed KPI stats (over ALL filtered records, not just current page)
+    average_score: float = 0.0
+    late_openings: int = 0
+    early_closures: int = 0
+    monthly_average: float = 0.0
+    weekly_average: float = 0.0

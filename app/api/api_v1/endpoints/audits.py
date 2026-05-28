@@ -69,11 +69,12 @@ def _merge_photo_urls(
 
 router = APIRouter()
 
-@router.get("", response_model=List[schemas.AuditResponse])
+@router.get("", response_model=schemas.AuditListResponse)
 async def read_audits(
     db: AsyncSession = Depends(deps.get_db),
-    skip: int = 0,
-    limit: int = 10000,
+    page: int = 1,
+    size: int = 25,
+    search: str | None = None,
     start_date: str | None = None,
     end_date: str | None = None,
     coffee_id: int | None = None,
@@ -83,89 +84,145 @@ async def read_audits(
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
     """
-    Retrieve audits.
-    - Admin: All audits
+    Retrieve audits with server-side pagination.
+    - Admin/Boss: All audits
     - Auditor: Own audits
+    - Manager: Audits for their managed coffees
     - Viewer: Audits for their assigned coffee
     """
     try:
-        from datetime import datetime, date
+        import math
+        from datetime import datetime
+        from sqlalchemy import func, and_, or_
         from app.models.models import Coffee, User as DBUser
 
-        query = select(Audit).options(
-            selectinload(Audit.coffee),
-            selectinload(Audit.auditor),
-            selectinload(Audit.answers).selectinload(AuditAnswer.question).selectinload(AuditQuestion.category).selectinload(AuditCategory.questions)
-        )
+        empty_response = {
+            "items": [], "total": 0, "page": page,
+            "size": size, "pages": 0, "average_score": 0.0
+        }
 
+        # ── 1. Access-control conditions ──────────────────────────────────
+        base_conditions = []
         has_read_rights = current_user.rights and current_user.rights.audits_read
+
         if current_user.role in (UserRole.ADMIN, UserRole.BOSS):
-            # Full access for admins and bosses
             pass
         elif current_user.role == UserRole.AUDITOR:
-            # Auditors ALWAYS see only their own audits, rights cannot override this
-            query = query.where(Audit.auditor_id == current_user.id)
+            base_conditions.append(Audit.auditor_id == current_user.id)
         elif has_read_rights:
-            # Other roles with explicit read rights get full access
             pass
         elif current_user.role == UserRole.MANAGER:
             managed_ids = [c.id for c in current_user.managed_coffees] if current_user.managed_coffees else []
             if not managed_ids:
-                return []
-            query = query.where(Audit.coffee_id.in_(managed_ids))
+                return empty_response
+            base_conditions.append(Audit.coffee_id.in_(managed_ids))
         elif current_user.role == UserRole.VIEWER:
             if not current_user.coffee_id:
-                return []
-            query = query.where(Audit.coffee_id == current_user.coffee_id)
+                return empty_response
+            base_conditions.append(Audit.coffee_id == current_user.coffee_id)
         else:
-            return []
+            return empty_response
 
-        # Apply Filters
+        # ── 2. Date / scalar filter conditions ────────────────────────────
         if start_date:
             try:
                 dt = datetime.fromisoformat(start_date.replace("Z", "+00:00")).date()
-                query = query.where(Audit.date >= dt)
+                base_conditions.append(Audit.date >= dt)
             except ValueError:
                 try:
                     dt = datetime.strptime(start_date, "%Y-%m-%d").date()
-                    query = query.where(Audit.date >= dt)
+                    base_conditions.append(Audit.date >= dt)
                 except ValueError:
                     pass
 
         if end_date:
             try:
                 dt = datetime.fromisoformat(end_date.replace("Z", "+00:00")).date()
-                query = query.where(Audit.date <= dt)
+                base_conditions.append(Audit.date <= dt)
             except ValueError:
                 try:
                     dt = datetime.strptime(end_date, "%Y-%m-%d").date()
-                    query = query.where(Audit.date <= dt)
+                    base_conditions.append(Audit.date <= dt)
                 except ValueError:
                     pass
 
         if coffee_id:
-            query = query.where(Audit.coffee_id == coffee_id)
-
-        if coffee_shop:
-            query = query.join(Audit.coffee).where(Coffee.name == coffee_shop)
+            base_conditions.append(Audit.coffee_id == coffee_id)
 
         if auditor_id:
-            query = query.where(Audit.auditor_id == auditor_id)
+            base_conditions.append(Audit.auditor_id == auditor_id)
 
-        if auditor_name:
-            query = query.join(Audit.auditor).where(
-                (DBUser.full_name == auditor_name) | (DBUser.email == auditor_name)
+        # ── 3. Determine which JOINs are required ─────────────────────────
+        need_coffee_join  = bool(coffee_shop or search)
+        need_auditor_join = bool(auditor_name or search)
+
+        def _build(base_select):
+            """Apply joins, conditions, and text-filters to any SELECT."""
+            q = base_select
+            if need_coffee_join:
+                q = q.join(Coffee, Audit.coffee_id == Coffee.id)
+            if need_auditor_join:
+                q = q.join(DBUser, Audit.auditor_id == DBUser.id)
+            if base_conditions:
+                q = q.where(and_(*base_conditions))
+            if coffee_shop:
+                q = q.where(Coffee.name == coffee_shop)
+            if auditor_name:
+                q = q.where(
+                    (DBUser.full_name == auditor_name) | (DBUser.email == auditor_name)
+                )
+            if search:
+                s = f"%{search.lower()}%"
+                q = q.where(
+                    or_(
+                        func.lower(Coffee.name).like(s),
+                        func.lower(func.coalesce(DBUser.full_name, "")).like(s),
+                        func.lower(DBUser.email).like(s),
+                    )
+                )
+            return q
+
+        # ── 4. COUNT + AVG query ───────────────────────────────────────────
+        count_q = _build(
+            select(func.count(Audit.id), func.coalesce(func.avg(Audit.score), 0.0))
+        )
+        count_result = await db.execute(count_q)
+        total, avg_score = count_result.one()
+        total     = int(total or 0)
+        avg_score = round(float(avg_score or 0), 2)
+        pages     = math.ceil(total / size) if size > 0 and total > 0 else 0
+
+        # ── 5. Paginated data query ────────────────────────────────────────
+        data_q = _build(
+            select(Audit).options(
+                selectinload(Audit.coffee),
+                selectinload(Audit.auditor),
+                selectinload(Audit.answers)
+                    .selectinload(AuditAnswer.question)
+                    .selectinload(AuditQuestion.category)
+                    .selectinload(AuditCategory.questions)
             )
+        )
+        offset = (max(page, 1) - 1) * size
+        data_q = data_q.order_by(Audit.date.desc(), Audit.created_at.desc()).offset(offset).limit(size)
 
-        query = query.order_by(Audit.date.desc(), Audit.created_at.desc()).offset(skip).limit(limit)
-        
-        result = await db.execute(query)
+        result = await db.execute(data_q)
         audits = result.scalars().all()
-        return audits
+
+        return {
+            "items":         audits,
+            "total":         total,
+            "page":          page,
+            "size":          size,
+            "pages":         pages,
+            "average_score": avg_score,
+        }
     except Exception as e:
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
+
+
 
 @router.post("", response_model=schemas.AuditResponse)
 async def create_audit(

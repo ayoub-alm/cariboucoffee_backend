@@ -20,7 +20,7 @@ async def read_coffees(
     Retrieve coffees.
     """
 
-    query = select(Coffee).offset(skip).limit(limit)
+    query = select(Coffee).order_by(Coffee.id).offset(skip).limit(limit)
     result = await db.execute(query)
     coffees = result.scalars().all()
     

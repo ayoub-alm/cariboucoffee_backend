@@ -54,17 +54,19 @@ def _compute_status(score: float, thr: Optional[ScheduleThreshold]) -> str:
     return "red"
 
 
-@router.get("", response_model=List[schemas.DailyTimeRecordEnriched])
+@router.get("", response_model=schemas.DailyLogListResponse)
 async def read_daily_logs(
     db: AsyncSession = Depends(deps.get_db),
-    skip: int = 0,
-    limit: int = 1000,
+    page: int = 1,
+    size: int = 25,
     coffee_id: Optional[int] = None,
     start_date: Optional[datetime.date] = None,
     end_date: Optional[datetime.date] = None,
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
-    """Retrieve daily logs with backend-computed score and status."""
+    """Retrieve daily logs with server-side pagination and pre-computed KPI stats."""
+    import math
+
     if current_user.role not in [UserRole.ADMIN, UserRole.BOSS, UserRole.CONTROLLER]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
 
@@ -76,6 +78,7 @@ async def read_daily_logs(
     coffees_result = await db.execute(select(Coffee))
     coffees = {c.id: c for c in coffees_result.scalars().all()}
 
+    # Build base query with filters applied
     query = select(DailyTimeRecord)
     if coffee_id is not None:
         query = query.where(DailyTimeRecord.coffee_id == coffee_id)
@@ -83,13 +86,57 @@ async def read_daily_logs(
         query = query.where(DailyTimeRecord.date >= start_date)
     if end_date is not None:
         query = query.where(DailyTimeRecord.date <= end_date)
-    query = query.order_by(DailyTimeRecord.date.desc()).offset(skip).limit(limit)
+    query = query.order_by(DailyTimeRecord.date.desc())
 
-    result = await db.execute(query)
-    logs = result.scalars().all()
+    # Fetch ALL matching records (lightweight – no joins) for KPI stats
+    all_result = await db.execute(query)
+    all_logs = all_result.scalars().all()
+
+    total = len(all_logs)
+    pages = math.ceil(total / size) if size > 0 and total > 0 else 0
+
+    # ── Compute KPI stats over all filtered records ────────────────────────
+    today = datetime.date.today()
+    current_month_start = today.replace(day=1)
+    iso_weekday = today.weekday()   # 0 = Monday
+    current_week_start = today - datetime.timedelta(days=iso_weekday)
+
+    total_score_sum = 0.0
+    month_score_sum = 0.0;  month_count = 0
+    week_score_sum  = 0.0;  week_count  = 0
+    late_openings   = 0
+    early_closures  = 0
+
+    for log in all_logs:
+        coffee = coffees.get(log.coffee_id)
+        score  = _compute_score(log, coffee)
+        total_score_sum += score
+
+        log_date = log.date if isinstance(log.date, datetime.date) else datetime.date.fromisoformat(str(log.date))
+        if log_date >= current_month_start:
+            month_score_sum += score
+            month_count += 1
+        if log_date >= current_week_start:
+            week_score_sum += score
+            week_count += 1
+
+        if coffee:
+            if coffee.opening_time and log.opening_time and log.opening_time > coffee.opening_time:
+                late_openings += 1
+            if coffee.closing_time and log.closing_time and log.closing_time < coffee.closing_time:
+                early_closures += 1
+
+    average_score    = round(total_score_sum / total, 2)      if total       > 0 else 0.0
+    monthly_average  = round(month_score_sum / month_count, 2) if month_count > 0 else 0.0
+    weekly_average   = round(week_score_sum  / week_count,  2) if week_count  > 0 else 0.0
+
+    # ── Slice to current page and enrich ──────────────────────────────────
+    page   = max(1, page)
+    offset = (page - 1) * size
+    page_logs = all_logs[offset: offset + size]
 
     enriched = []
-    for log in logs:
+    for log in page_logs:
         coffee = coffees.get(log.coffee_id)
         score  = _compute_score(log, coffee)
         status_label = _compute_status(score, thr)
@@ -104,7 +151,18 @@ async def read_daily_logs(
             "status":        status_label,
         })
 
-    return enriched
+    return {
+        "items":           enriched,
+        "total":           total,
+        "page":            page,
+        "size":            size,
+        "pages":           pages,
+        "average_score":   average_score,
+        "late_openings":   late_openings,
+        "early_closures":  early_closures,
+        "monthly_average": monthly_average,
+        "weekly_average":  weekly_average,
+    }
 
 
 @router.post("", response_model=schemas.DailyTimeRecordEnriched)
