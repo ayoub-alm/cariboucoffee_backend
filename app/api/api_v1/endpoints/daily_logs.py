@@ -176,6 +176,204 @@ async def read_daily_logs(
     }
 
 
+@router.get("/export-excel")
+async def export_daily_logs_excel(
+    coffee_id: Optional[int] = None,
+    start_date: Optional[datetime.date] = None,
+    end_date: Optional[datetime.date] = None,
+    db: AsyncSession = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+) -> Any:
+    """Export daily logs to Excel format."""
+    from fastapi.responses import Response
+    from sqlalchemy.orm import selectinload
+    
+    if current_user.role not in [UserRole.ADMIN, UserRole.BOSS, UserRole.MANAGER, UserRole.CONTROLLER]:
+        raise HTTPException(status_code=403, detail="Accès refusé")
+
+    # 1. Load thresholds
+    thr_result = await db.execute(select(ScheduleThreshold).limit(1))
+    thr = thr_result.scalars().first()
+    green_min  = thr.green_min  if thr else 100.0
+    orange_min = thr.orange_min if thr else 90.0
+
+    # 2. Build query
+    query = select(DailyTimeRecord).options(
+        selectinload(DailyTimeRecord.coffee),
+        selectinload(DailyTimeRecord.controller)
+    )
+    
+    if current_user.role == UserRole.MANAGER:
+        managed_ids = [c.id for c in current_user.managed_coffees] if current_user.managed_coffees else []
+        if coffee_id is not None:
+            if coffee_id not in managed_ids:
+                raise HTTPException(status_code=403, detail="Accès non autorisé pour ce café")
+            query = query.where(DailyTimeRecord.coffee_id == coffee_id)
+        else:
+            query = query.where(DailyTimeRecord.coffee_id.in_(managed_ids))
+    else:
+        if coffee_id is not None:
+            query = query.where(DailyTimeRecord.coffee_id == coffee_id)
+
+    if start_date is not None:
+        query = query.where(DailyTimeRecord.date >= start_date)
+    if end_date is not None:
+        query = query.where(DailyTimeRecord.date <= end_date)
+        
+    query = query.order_by(DailyTimeRecord.date.desc())
+
+    # 3. Execute query
+    result = await db.execute(query)
+    logs = result.scalars().all()
+
+    def get_log_status(score: float) -> str:
+        if score >= green_min:
+            return "Conforme"
+        if score >= orange_min:
+            return "Partiel"
+        return "Non Conforme"
+
+    def get_score_style(score: float) -> str:
+        if score >= green_min:
+            return "GoodStyle"
+        if score >= orange_min:
+            return "WarningStyle"
+        return "BadStyle"
+
+    def escape_xml(val: Any) -> str:
+        if val is None:
+            return ""
+        s = str(val)
+        return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;").replace("'", "&apos;")
+
+    # 4. Generate XML Rows
+    rows_xml = []
+    for log in logs:
+        score = _compute_score(log, log.coffee)
+        status_label = get_log_status(score)
+        score_style = get_score_style(score)
+        coffee_name = log.coffee.name if log.coffee else f"Café #{log.coffee_id}"
+        controller_name = log.controller.full_name if log.controller else f"Utilisateur #{log.controller_id}"
+        
+        date_str = log.date.strftime("%d/%m/%Y") if log.date else ""
+        opening = log.opening_time or "--:--"
+        closing = log.closing_time or "--:--"
+
+        rows_xml.append(f"""
+   <Row ss:Height="20">
+    <Cell><Data ss:Type="String">{escape_xml(date_str)}</Data></Cell>
+    <Cell><Data ss:Type="String">{escape_xml(coffee_name)}</Data></Cell>
+    <Cell><Data ss:Type="String">{escape_xml(opening)}</Data></Cell>
+    <Cell><Data ss:Type="String">{escape_xml(closing)}</Data></Cell>
+    <Cell ss:StyleID="{score_style}"><Data ss:Type="Number">{round(score)}</Data></Cell>
+    <Cell><Data ss:Type="String">{escape_xml(status_label)}</Data></Cell>
+    <Cell><Data ss:Type="String">{escape_xml(controller_name)}</Data></Cell>
+   </Row>""")
+
+    if start_date and end_date:
+        period_text = f"Du {start_date} au {end_date}"
+    elif start_date:
+        period_text = f"Depuis le {start_date}"
+    elif end_date:
+        period_text = f"Jusqu'au {end_date}"
+    else:
+        period_text = "Toutes les dates disponibles"
+
+    export_date_text = datetime.datetime.now().strftime("%d/%m/%Y %H:%M")
+    generated_by_text = current_user.full_name if current_user.full_name else current_user.email
+
+    # Compile Workbook XML
+    workbook_xml = f"""<?xml version="1.0"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:html="http://www.w3.org/TR/REC-html40">
+ <Styles>
+  <Style ss:ID="Default" ss:Name="Normal">
+   <Alignment ss:Vertical="Bottom"/>
+   <Borders/>
+   <Font ss:FontName="Calibri" x:CharSet="1" x:Family="Swiss" ss:Size="11" ss:Color="#000000"/>
+   <Interior/>
+   <NumberFormat/>
+   <Protection/>
+  </Style>
+  <Style ss:ID="Header">
+   <Font ss:FontName="Calibri" ss:Size="11" ss:Bold="1" ss:Color="#FFFFFF"/>
+   <Interior ss:Color="#005B70" ss:Pattern="Solid"/>
+   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+  </Style>
+  <Style ss:ID="SubHeader">
+   <Font ss:FontName="Calibri" ss:Size="11" ss:Bold="1" ss:Color="#FFFFFF"/>
+   <Interior ss:Color="#2E7D90" ss:Pattern="Solid"/>
+   <Alignment ss:Horizontal="Left" ss:Vertical="Center"/>
+  </Style>
+  <Style ss:ID="BoldText">
+   <Font ss:FontName="Calibri" ss:Size="11" ss:Bold="1"/>
+  </Style>
+  <Style ss:ID="NumberStyle">
+   <Alignment ss:Horizontal="Right" ss:Vertical="Center"/>
+   <NumberFormat ss:Format="0"/>
+  </Style>
+  <Style ss:ID="GoodStyle">
+   <Font ss:FontName="Calibri" ss:Size="11" ss:Color="#276A3C" ss:Bold="1"/>
+   <Interior ss:Color="#E2EFDA" ss:Pattern="Solid"/>
+   <Alignment ss:Horizontal="Right" ss:Vertical="Center"/>
+   <NumberFormat ss:Format="0"/>
+  </Style>
+  <Style ss:ID="WarningStyle">
+   <Font ss:FontName="Calibri" ss:Size="11" ss:Color="#7A5600" ss:Bold="1"/>
+   <Interior ss:Color="#FEF7E0" ss:Pattern="Solid"/>
+   <Alignment ss:Horizontal="Right" ss:Vertical="Center"/>
+   <NumberFormat ss:Format="0"/>
+  </Style>
+  <Style ss:ID="BadStyle">
+   <Font ss:FontName="Calibri" ss:Size="11" ss:Color="#A51D24" ss:Bold="1"/>
+   <Interior ss:Color="#FCE8E6" ss:Pattern="Solid"/>
+   <Alignment ss:Horizontal="Right" ss:Vertical="Center"/>
+   <NumberFormat ss:Format="0"/>
+  </Style>
+ </Styles>
+ <Worksheet ss:Name="Registre des Horaires">
+  <Table>
+   <Row ss:Height="22"><Cell ss:MergeAcross="6" ss:StyleID="SubHeader"><Data ss:Type="String">Registre des Horaires</Data></Cell></Row>
+   <Row ss:Height="18">
+    <Cell ss:StyleID="BoldText"><Data ss:Type="String">Période :</Data></Cell>
+    <Cell ss:MergeAcross="5"><Data ss:Type="String">{escape_xml(period_text)}</Data></Cell>
+   </Row>
+   <Row ss:Height="18">
+    <Cell ss:StyleID="BoldText"><Data ss:Type="String">Date d'export :</Data></Cell>
+    <Cell ss:MergeAcross="5"><Data ss:Type="String">{escape_xml(export_date_text)}</Data></Cell>
+   </Row>
+   <Row ss:Height="18">
+    <Cell ss:StyleID="BoldText"><Data ss:Type="String">Généré par :</Data></Cell>
+    <Cell ss:MergeAcross="5"><Data ss:Type="String">{escape_xml(generated_by_text)}</Data></Cell>
+   </Row>
+   <Row ss:Height="15"></Row> <!-- Spacer -->
+   <Row ss:Height="20">
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Date</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Café</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Ouverture Réelle</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Fermeture Réelle</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Score (%)</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Statut</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Saisi par</Data></Cell>
+   </Row>{"".join(rows_xml)}
+  </Table>
+ </Worksheet>
+</Workbook>"""
+
+    date_str = datetime.date.today().strftime("%Y-%m-%d")
+    return Response(
+        content=workbook_xml,
+        media_type="application/vnd.ms-excel",
+        headers={
+            "Content-Disposition": f"attachment; filename=horaires_export_{date_str}.xls",
+            "Access-Control-Expose-Headers": "Content-Disposition"
+        }
+    )
+
 @router.post("", response_model=schemas.DailyTimeRecordEnriched)
 async def create_daily_log(
     *,

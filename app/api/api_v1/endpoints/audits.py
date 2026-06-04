@@ -340,6 +340,276 @@ async def create_audit(
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Error creating audit: {str(e)}")
 
+@router.get("/export-excel")
+async def export_audits_excel(
+    db: AsyncSession = Depends(deps.get_db),
+    search: str | None = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
+    coffee_id: int | None = None,
+    coffee_shop: str | None = None,
+    auditor_id: int | None = None,
+    auditor_name: str | None = None,
+    current_user: User = Depends(deps.get_current_user),
+) -> Any:
+    """
+    Export audits in Excel format.
+    """
+    try:
+        from datetime import datetime
+        from sqlalchemy import func, and_, or_
+        from app.models.models import Coffee, User as DBUser, ConformityThreshold, AuditStatus
+        
+        # ── 1. Access-control conditions ──────────────────────────────────
+        base_conditions = []
+        has_read_rights = current_user.rights and current_user.rights.audits_read
+
+        if current_user.role in (UserRole.ADMIN, UserRole.BOSS):
+            pass
+        elif current_user.role == UserRole.AUDITOR:
+            base_conditions.append(Audit.auditor_id == current_user.id)
+        elif has_read_rights:
+            pass
+        elif current_user.role == UserRole.MANAGER:
+            managed_ids = [c.id for c in current_user.managed_coffees] if current_user.managed_coffees else []
+            if not managed_ids:
+                raise HTTPException(status_code=400, detail="Vous ne gérez aucun café.")
+            base_conditions.append(Audit.coffee_id.in_(managed_ids))
+        elif current_user.role == UserRole.VIEWER:
+            if not current_user.coffee_id:
+                raise HTTPException(status_code=400, detail="Aucun café assigné.")
+            base_conditions.append(Audit.coffee_id == current_user.coffee_id)
+        else:
+            raise HTTPException(status_code=403, detail="Accès non autorisé.")
+
+        # ── 2. Date / scalar filter conditions ────────────────────────────
+        if start_date:
+            try:
+                dt = datetime.fromisoformat(start_date.replace("Z", "+00:00")).date()
+                base_conditions.append(Audit.date >= dt)
+            except ValueError:
+                try:
+                    dt = datetime.strptime(start_date, "%Y-%m-%d").date()
+                    base_conditions.append(Audit.date >= dt)
+                except ValueError:
+                    pass
+
+        if end_date:
+            try:
+                dt = datetime.fromisoformat(end_date.replace("Z", "+00:00")).date()
+                base_conditions.append(Audit.date <= dt)
+            except ValueError:
+                try:
+                    dt = datetime.strptime(end_date, "%Y-%m-%d").date()
+                    base_conditions.append(Audit.date <= dt)
+                except ValueError:
+                    pass
+
+        if coffee_id:
+            base_conditions.append(Audit.coffee_id == coffee_id)
+
+        if auditor_id:
+            base_conditions.append(Audit.auditor_id == auditor_id)
+
+        need_coffee_join  = bool(coffee_shop or search)
+        need_auditor_join = bool(auditor_name or search)
+
+        def _build(base_select):
+            q = base_select
+            if need_coffee_join:
+                q = q.join(Coffee, Audit.coffee_id == Coffee.id)
+            if need_auditor_join:
+                q = q.join(DBUser, Audit.auditor_id == DBUser.id)
+            if base_conditions:
+                q = q.where(and_(*base_conditions))
+            if coffee_shop:
+                q = q.where(Coffee.name == coffee_shop)
+            if auditor_name:
+                q = q.where(
+                    (DBUser.full_name == auditor_name) | (DBUser.email == auditor_name)
+                )
+            if search:
+                s = f"%{search.lower()}%"
+                q = q.where(
+                    or_(
+                        func.lower(Coffee.name).like(s),
+                        func.lower(func.coalesce(DBUser.full_name, "")).like(s),
+                        func.lower(DBUser.email).like(s),
+                    )
+                )
+            return q
+
+        # ── 3. Query all filtered audits (non-paginated) ──────────────────
+        data_q = _build(
+            select(Audit).options(
+                selectinload(Audit.coffee),
+                selectinload(Audit.auditor)
+            )
+        )
+        data_q = data_q.order_by(Audit.date.desc(), Audit.created_at.desc())
+        result = await db.execute(data_q)
+        audits = result.scalars().all()
+
+        # ── 4. Fetch thresholds ───────────────────────────────────────────
+        t_result = await db.execute(select(ConformityThreshold).limit(1))
+        thresholds = t_result.scalars().first()
+        conforme_min = thresholds.conforme_min if thresholds and thresholds.conforme_min is not None else 80.0
+        partiel_min = thresholds.partiel_min if thresholds and thresholds.partiel_min is not None else 70.0
+
+        def get_audit_status(score: float) -> str:
+            if score >= conforme_min:
+                return "Conforme"
+            if score >= partiel_min:
+                return "Partiel"
+            return "Non conforme"
+
+        def get_score_style(score: float) -> str:
+            if score >= conforme_min:
+                return "GoodStyle"
+            if score >= partiel_min:
+                return "WarningStyle"
+            return "BadStyle"
+
+        def escape_xml(val: Any) -> str:
+            if val is None:
+                return ""
+            s = str(val)
+            return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;").replace("'", "&apos;")
+
+        # ── 5. Generate Excel Rows ────────────────────────────────────────
+        rows_xml = []
+        for audit in audits:
+            status_label = "En cours" if audit.status == AuditStatus.IN_PROGRESS else get_audit_status(audit.score)
+            score_style = "NumberStyle" if audit.status == AuditStatus.IN_PROGRESS else get_score_style(audit.score)
+            auditor_name = audit.auditor.full_name if audit.auditor else "N/A"
+            coffee_name = audit.coffee.name if audit.coffee else "N/A"
+            date_str = audit.date.strftime("%d/%m/%Y %H:%M") if audit.date else ""
+            conclusion = audit.conclusion or audit.actions_correctives or ""
+            workflow_status = audit.status.value if hasattr(audit.status, "value") else audit.status
+            
+            rows_xml.append(f"""
+   <Row ss:Height="20">
+    <Cell><Data ss:Type="Number">{audit.id}</Data></Cell>
+    <Cell><Data ss:Type="String">{escape_xml(coffee_name)}</Data></Cell>
+    <Cell><Data ss:Type="String">{escape_xml(auditor_name)}</Data></Cell>
+    <Cell><Data ss:Type="String">{escape_xml(date_str)}</Data></Cell>
+    <Cell ss:StyleID="{score_style}"><Data ss:Type="Number">{round(audit.score) if audit.score is not None else 0}</Data></Cell>
+    <Cell><Data ss:Type="String">{escape_xml(status_label)}</Data></Cell>
+    <Cell><Data ss:Type="String">{escape_xml(conclusion)}</Data></Cell>
+    <Cell><Data ss:Type="String">{escape_xml(workflow_status)}</Data></Cell>
+   </Row>""")
+
+        if start_date and end_date:
+            period_text = f"Du {start_date} au {end_date}"
+        elif start_date:
+            period_text = f"Depuis le {start_date}"
+        elif end_date:
+            period_text = f"Jusqu'au {end_date}"
+        else:
+            period_text = "Toutes les dates disponibles"
+
+        export_date_text = datetime.now().strftime("%d/%m/%Y %H:%M")
+        generated_by_text = current_user.full_name if current_user.full_name else current_user.email
+
+        # Compile Workbook XML
+        workbook_xml = f"""<?xml version="1.0"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:html="http://www.w3.org/TR/REC-html40">
+ <Styles>
+  <Style ss:ID="Default" ss:Name="Normal">
+   <Alignment ss:Vertical="Bottom"/>
+   <Borders/>
+   <Font ss:FontName="Calibri" x:CharSet="1" x:Family="Swiss" ss:Size="11" ss:Color="#000000"/>
+   <Interior/>
+   <NumberFormat/>
+   <Protection/>
+  </Style>
+  <Style ss:ID="Header">
+   <Font ss:FontName="Calibri" ss:Size="11" ss:Bold="1" ss:Color="#FFFFFF"/>
+   <Interior ss:Color="#005B70" ss:Pattern="Solid"/>
+   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+  </Style>
+  <Style ss:ID="SubHeader">
+   <Font ss:FontName="Calibri" ss:Size="11" ss:Bold="1" ss:Color="#FFFFFF"/>
+   <Interior ss:Color="#2E7D90" ss:Pattern="Solid"/>
+   <Alignment ss:Horizontal="Left" ss:Vertical="Center"/>
+  </Style>
+  <Style ss:ID="BoldText">
+   <Font ss:FontName="Calibri" ss:Size="11" ss:Bold="1"/>
+  </Style>
+  <Style ss:ID="NumberStyle">
+   <Alignment ss:Horizontal="Right" ss:Vertical="Center"/>
+   <NumberFormat ss:Format="0"/>
+  </Style>
+  <Style ss:ID="GoodStyle">
+   <Font ss:FontName="Calibri" ss:Size="11" ss:Color="#276A3C" ss:Bold="1"/>
+   <Interior ss:Color="#E2EFDA" ss:Pattern="Solid"/>
+   <Alignment ss:Horizontal="Right" ss:Vertical="Center"/>
+   <NumberFormat ss:Format="0"/>
+  </Style>
+  <Style ss:ID="WarningStyle">
+   <Font ss:FontName="Calibri" ss:Size="11" ss:Color="#7A5600" ss:Bold="1"/>
+   <Interior ss:Color="#FEF7E0" ss:Pattern="Solid"/>
+   <Alignment ss:Horizontal="Right" ss:Vertical="Center"/>
+   <NumberFormat ss:Format="0"/>
+  </Style>
+  <Style ss:ID="BadStyle">
+   <Font ss:FontName="Calibri" ss:Size="11" ss:Color="#A51D24" ss:Bold="1"/>
+   <Interior ss:Color="#FCE8E6" ss:Pattern="Solid"/>
+   <Alignment ss:Horizontal="Right" ss:Vertical="Center"/>
+   <NumberFormat ss:Format="0"/>
+  </Style>
+ </Styles>
+ <Worksheet ss:Name="Registre des Audits">
+  <Table>
+   <Row ss:Height="22"><Cell ss:MergeAcross="7" ss:StyleID="SubHeader"><Data ss:Type="String">Registre des Audits</Data></Cell></Row>
+   <Row ss:Height="18">
+    <Cell ss:StyleID="BoldText"><Data ss:Type="String">Période :</Data></Cell>
+    <Cell ss:MergeAcross="6"><Data ss:Type="String">{escape_xml(period_text)}</Data></Cell>
+   </Row>
+   <Row ss:Height="18">
+    <Cell ss:StyleID="BoldText"><Data ss:Type="String">Date d'export :</Data></Cell>
+    <Cell ss:MergeAcross="6"><Data ss:Type="String">{escape_xml(export_date_text)}</Data></Cell>
+   </Row>
+   <Row ss:Height="18">
+    <Cell ss:StyleID="BoldText"><Data ss:Type="String">Généré par :</Data></Cell>
+    <Cell ss:MergeAcross="6"><Data ss:Type="String">{escape_xml(generated_by_text)}</Data></Cell>
+   </Row>
+   <Row ss:Height="15"></Row> <!-- Spacer -->
+   <Row ss:Height="20">
+    <Cell ss:StyleID="Header"><Data ss:Type="String">ID</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Café</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Auditeur</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Date</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Score (%)</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Statut</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Conclusion</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">État Workflow</Data></Cell>
+   </Row>{"".join(rows_xml)}
+  </Table>
+ </Worksheet>
+</Workbook>"""
+
+        date_str = datetime.now().strftime("%Y-%m-%d")
+        return Response(
+            content=workbook_xml,
+            media_type="application/vnd.ms-excel",
+            headers={
+                "Content-Disposition": f"attachment; filename=audits_export_{date_str}.xls",
+                "Access-Control-Expose-Headers": "Content-Disposition"
+            }
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.get("/{audit_id}", response_model=schemas.AuditResponse)
 async def read_audit(
     *,
