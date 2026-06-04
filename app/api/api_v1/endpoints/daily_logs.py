@@ -67,7 +67,7 @@ async def read_daily_logs(
     """Retrieve daily logs with server-side pagination and pre-computed KPI stats."""
     import math
 
-    if current_user.role not in [UserRole.ADMIN, UserRole.BOSS, UserRole.CONTROLLER]:
+    if current_user.role not in [UserRole.ADMIN, UserRole.BOSS, UserRole.CONTROLLER, UserRole.MANAGER]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
 
     # Load schedule thresholds once
@@ -80,8 +80,19 @@ async def read_daily_logs(
 
     # Build base query with filters applied
     query = select(DailyTimeRecord)
-    if coffee_id is not None:
-        query = query.where(DailyTimeRecord.coffee_id == coffee_id)
+    
+    if current_user.role == UserRole.MANAGER:
+        managed_ids = [c.id for c in current_user.managed_coffees] if current_user.managed_coffees else []
+        if coffee_id is not None:
+            if coffee_id not in managed_ids:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès non autorisé pour ce café")
+            query = query.where(DailyTimeRecord.coffee_id == coffee_id)
+        else:
+            query = query.where(DailyTimeRecord.coffee_id.in_(managed_ids))
+    else:
+        if coffee_id is not None:
+            query = query.where(DailyTimeRecord.coffee_id == coffee_id)
+
     if start_date is not None:
         query = query.where(DailyTimeRecord.date >= start_date)
     if end_date is not None:

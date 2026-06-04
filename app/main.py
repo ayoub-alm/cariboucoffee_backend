@@ -10,7 +10,7 @@ from app.db.base import Base
 from app.models import User, UserRole, Coffee, AuditCategory, AuditQuestion
 from app.core.security import get_password_hash
 from app.db.seed_data import DEFAULT_ADMIN, DEFAULT_COFFEES, AUDIT_CATEGORIES_DATA
-from sqlalchemy import select
+from sqlalchemy import select, func
 import os
 import logging
 
@@ -105,6 +105,82 @@ async def startup_event():
             
             await db.commit()
             print(f"Seeded {len(AUDIT_CATEGORIES_DATA)} audit categories with questions")
+
+        # Seed test audits & daily logs for last 3 months (100 audits, 400 logs)
+        from app.models.models import Audit, DailyTimeRecord, AuditStatus
+        from datetime import date, timedelta, datetime
+        import random
+
+        audit_count_res = await db.execute(select(func.count(Audit.id)))
+        audit_count = audit_count_res.scalar() or 0
+
+        log_count_res = await db.execute(select(func.count(DailyTimeRecord.id)))
+        log_count = log_count_res.scalar() or 0
+
+        if audit_count == 0 and log_count == 0:
+            print("Seeding 100 audits and 400 daily logs for the last 3 months...")
+            admin_user = (await db.execute(select(User).where(User.role == UserRole.ADMIN))).scalars().first()
+            coffees = (await db.execute(select(Coffee))).scalars().all()
+            
+            if admin_user and coffees:
+                # 1. Seed 400 Daily Time Records (100 days per café)
+                today = date.today()
+                for i in range(100):
+                    log_date = today - timedelta(days=i)
+                    for coffee in coffees:
+                        exp_open_h = 7
+                        exp_close_h = 22
+                        if coffee.opening_time:
+                            try: exp_open_h = int(coffee.opening_time.split(":")[0])
+                            except: pass
+                        if coffee.closing_time:
+                            try: exp_close_h = int(coffee.closing_time.split(":")[0])
+                            except: pass
+                        
+                        r = random.random()
+                        if r < 0.80:
+                            opening = f"{exp_open_h:02d}:00"
+                            closing = f"{exp_close_h:02d}:00"
+                        elif r < 0.95:
+                            opening = f"{exp_open_h:02d}:{random.choice([15, 30])}"
+                            closing = f"{exp_close_h - 1:02d}:{random.choice([30, 45])}"
+                        else:
+                            opening = f"{exp_open_h + random.choice([1, 2]):02d}:{random.choice([0, 15, 30])}"
+                            closing = f"{exp_close_h - random.choice([2, 3]):02d}:{random.choice([0, 30])}"
+                        
+                        log_rec = DailyTimeRecord(
+                            date=log_date,
+                            opening_time=opening,
+                            closing_time=closing,
+                            coffee_id=coffee.id,
+                            controller_id=admin_user.id
+                        )
+                        db.add(log_rec)
+                
+                # 2. Seed 100 Audits distributed randomly over last 90 days
+                audit_dates = [datetime.now() - timedelta(days=random.randint(0, 90)) for _ in range(100)]
+                for dt in audit_dates:
+                    coffee = random.choice(coffees)
+                    r = random.random()
+                    if r < 0.70:
+                        score = random.uniform(82.0, 98.0)
+                    elif r < 0.90:
+                        score = random.uniform(70.0, 79.9)
+                    else:
+                        score = random.uniform(45.0, 69.9)
+                    
+                    audit = Audit(
+                        date=dt,
+                        created_at=dt,
+                        score=round(score, 1),
+                        status=AuditStatus.COMPLETED,
+                        coffee_id=coffee.id,
+                        auditor_id=admin_user.id
+                    )
+                    db.add(audit)
+                
+                await db.commit()
+                print("Seeded database with 100 test audits and 400 daily logs successfully!")
 
     # Logging for scheduler
     cron_logger = logging.getLogger("apscheduler")

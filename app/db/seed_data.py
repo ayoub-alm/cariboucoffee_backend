@@ -3,10 +3,10 @@ Database seeding data for Caribou Coffee Audit System
 """
 
 DEFAULT_COFFEES = [
-    {"name": "ANFA", "location": "Casablanca", "active": True},
-    {"name": "CASA VOYAGEUR", "location": "Casablanca", "active": True},
-    {"name": "MAARIF", "location": "Casablanca", "active": True},
-    {"name": "RABAT AGDAL", "location": "Rabat", "active": True},
+    {"name": "ANFA", "location": "Casablanca", "active": True, "opening_time": "07:00", "closing_time": "22:00"},
+    {"name": "CASA VOYAGEUR", "location": "Casablanca", "active": True, "opening_time": "06:00", "closing_time": "21:00"},
+    {"name": "MAARIF", "location": "Casablanca", "active": True, "opening_time": "07:30", "closing_time": "22:30"},
+    {"name": "RABAT AGDAL", "location": "Rabat", "active": True, "opening_time": "08:00", "closing_time": "23:00"},
 ]
 
 DEFAULT_ADMIN = {
