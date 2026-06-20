@@ -7,51 +7,22 @@ import datetime
 from app.api import deps
 from app.models.models import DailyTimeRecord, ScheduleThreshold, UserRole, User, Coffee
 from app.schemas import schemas
+from app.services.schedule_scoring import compute_schedule_score, score_result_to_dict
 
 router = APIRouter()
 
 
-def _time_to_minutes(t: str) -> int:
-    """Convert 'HH:MM' string to total minutes."""
-    try:
-        h, m = map(int, t.split(":"))
-        return h * 60 + m
-    except Exception:
-        return 0
-
-
-def _compute_score(log: DailyTimeRecord, coffee: Optional[Coffee]) -> float:
-    """Compute score as (real_range / config_range) * 100, capped at 100."""
-    if not coffee:
-        return 100.0
-    if not coffee.opening_time or not coffee.closing_time:
-        return 100.0
-    if not log.opening_time or not log.closing_time:
-        return 0.0
-
-    config_start = _time_to_minutes(coffee.opening_time)
-    config_end   = _time_to_minutes(coffee.closing_time)
-    config_range = config_end - config_start
-
-    real_start = _time_to_minutes(log.opening_time)
-    real_end   = _time_to_minutes(log.closing_time)
-    real_range = real_end - real_start
-
-    if config_range <= 0:
-        return 100.0
-
-    percentage = (real_range / config_range) * 100.0
-    return min(round(percentage, 2), 100.0)
-
-
-def _compute_status(score: float, thr: Optional[ScheduleThreshold]) -> str:
-    green_min  = thr.green_min  if thr else 100.0
-    orange_min = thr.orange_min if thr else 90.0
-    if score >= green_min:
-        return "green"
-    if score >= orange_min:
-        return "orange"
-    return "red"
+def _enrich_log(log: DailyTimeRecord, coffee: Optional[Coffee], thr: Optional[ScheduleThreshold]) -> dict:
+    result = compute_schedule_score(log, coffee, thr)
+    return {
+        "id":            log.id,
+        "date":          log.date,
+        "opening_time":  log.opening_time,
+        "closing_time":  log.closing_time,
+        "coffee_id":     log.coffee_id,
+        "controller_id": log.controller_id,
+        **score_result_to_dict(result),
+    }
 
 
 @router.get("", response_model=schemas.DailyLogListResponse)
@@ -113,22 +84,25 @@ async def read_daily_logs(
     current_week_start = today - datetime.timedelta(days=iso_weekday)
 
     total_score_sum = 0.0
-    month_score_sum = 0.0;  month_count = 0
-    week_score_sum  = 0.0;  week_count  = 0
+    total_lost_sum  = 0.0
+    month_lost_sum  = 0.0;  month_count = 0
+    week_lost_sum   = 0.0;  week_count  = 0
     late_openings   = 0
     early_closures  = 0
 
     for log in all_logs:
         coffee = coffees.get(log.coffee_id)
-        score  = _compute_score(log, coffee)
-        total_score_sum += score
+        result = compute_schedule_score(log, coffee, thr)
+        total_score_sum += result.score
+        worst_violation = max(result.late_minutes, result.early_minutes)
+        total_lost_sum  += worst_violation
 
         log_date = log.date if isinstance(log.date, datetime.date) else datetime.date.fromisoformat(str(log.date))
         if log_date >= current_month_start:
-            month_score_sum += score
+            month_lost_sum += worst_violation
             month_count += 1
         if log_date >= current_week_start:
-            week_score_sum += score
+            week_lost_sum += worst_violation
             week_count += 1
 
         if coffee:
@@ -137,9 +111,10 @@ async def read_daily_logs(
             if coffee.closing_time and log.closing_time and log.closing_time < coffee.closing_time:
                 early_closures += 1
 
-    average_score    = round(total_score_sum / total, 2)      if total       > 0 else 0.0
-    monthly_average  = round(month_score_sum / month_count, 2) if month_count > 0 else 0.0
-    weekly_average   = round(week_score_sum  / week_count,  2) if week_count  > 0 else 0.0
+    average_score       = round(total_score_sum / total, 2)       if total       > 0 else 0.0
+    average_lost_minutes = round(total_lost_sum  / total, 2)       if total       > 0 else 0.0
+    monthly_average     = round(month_lost_sum  / month_count, 2) if month_count > 0 else 0.0
+    weekly_average      = round(week_lost_sum   / week_count,  2) if week_count  > 0 else 0.0
 
     # ── Slice to current page and enrich ──────────────────────────────────
     page   = max(1, page)
@@ -149,30 +124,20 @@ async def read_daily_logs(
     enriched = []
     for log in page_logs:
         coffee = coffees.get(log.coffee_id)
-        score  = _compute_score(log, coffee)
-        status_label = _compute_status(score, thr)
-        enriched.append({
-            "id":            log.id,
-            "date":          log.date,
-            "opening_time":  log.opening_time,
-            "closing_time":  log.closing_time,
-            "coffee_id":     log.coffee_id,
-            "controller_id": log.controller_id,
-            "score":         score,
-            "status":        status_label,
-        })
+        enriched.append(_enrich_log(log, coffee, thr))
 
     return {
-        "items":           enriched,
-        "total":           total,
-        "page":            page,
-        "size":            size,
-        "pages":           pages,
-        "average_score":   average_score,
-        "late_openings":   late_openings,
-        "early_closures":  early_closures,
-        "monthly_average": monthly_average,
-        "weekly_average":  weekly_average,
+        "items":              enriched,
+        "total":              total,
+        "page":               page,
+        "size":               size,
+        "pages":              pages,
+        "average_score":      average_score,
+        "average_lost_minutes": average_lost_minutes,
+        "late_openings":      late_openings,
+        "early_closures":     early_closures,
+        "monthly_average":    monthly_average,
+        "weekly_average":     weekly_average,
     }
 
 
@@ -194,8 +159,8 @@ async def export_daily_logs_excel(
     # 1. Load thresholds
     thr_result = await db.execute(select(ScheduleThreshold).limit(1))
     thr = thr_result.scalars().first()
-    green_min  = thr.green_min  if thr else 100.0
-    orange_min = thr.orange_min if thr else 90.0
+    green_max  = thr.green_min  if thr else 0.0
+    orange_max = thr.orange_min if thr else 60.0
 
     # 2. Build query
     query = select(DailyTimeRecord).options(
@@ -226,17 +191,13 @@ async def export_daily_logs_excel(
     result = await db.execute(query)
     logs = result.scalars().all()
 
-    def get_log_status(score: float) -> str:
-        if score >= green_min:
-            return "Conforme"
-        if score >= orange_min:
-            return "Partiel"
-        return "Non Conforme"
+    def get_log_status(result) -> str:
+        return result.conformity_label
 
-    def get_score_style(score: float) -> str:
-        if score >= green_min:
+    def get_score_style(result) -> str:
+        if result.status == "green":
             return "GoodStyle"
-        if score >= orange_min:
+        if result.status == "orange":
             return "WarningStyle"
         return "BadStyle"
 
@@ -249,9 +210,9 @@ async def export_daily_logs_excel(
     # 4. Generate XML Rows
     rows_xml = []
     for log in logs:
-        score = _compute_score(log, log.coffee)
-        status_label = get_log_status(score)
-        score_style = get_score_style(score)
+        result = compute_schedule_score(log, log.coffee, thr)
+        status_label = get_log_status(result)
+        score_style = get_score_style(result)
         coffee_name = log.coffee.name if log.coffee else f"Café #{log.coffee_id}"
         controller_name = log.controller.full_name if log.controller else f"Utilisateur #{log.controller_id}"
         
@@ -265,8 +226,9 @@ async def export_daily_logs_excel(
     <Cell><Data ss:Type="String">{escape_xml(coffee_name)}</Data></Cell>
     <Cell><Data ss:Type="String">{escape_xml(opening)}</Data></Cell>
     <Cell><Data ss:Type="String">{escape_xml(closing)}</Data></Cell>
-    <Cell ss:StyleID="{score_style}"><Data ss:Type="Number">{round(score)}</Data></Cell>
-    <Cell><Data ss:Type="String">{escape_xml(status_label)}</Data></Cell>
+    <Cell ss:StyleID="{score_style}"><Data ss:Type="String">{escape_xml(status_label)}</Data></Cell>
+    <Cell ss:StyleID="NumberStyle"><Data ss:Type="Number">{round(result.late_minutes)}</Data></Cell>
+    <Cell ss:StyleID="NumberStyle"><Data ss:Type="Number">{round(result.early_minutes)}</Data></Cell>
     <Cell><Data ss:Type="String">{escape_xml(controller_name)}</Data></Cell>
    </Row>""")
 
@@ -337,7 +299,7 @@ async def export_daily_logs_excel(
  </Styles>
  <Worksheet ss:Name="Registre des Horaires">
   <Table>
-   <Row ss:Height="22"><Cell ss:MergeAcross="6" ss:StyleID="SubHeader"><Data ss:Type="String">Registre des Horaires</Data></Cell></Row>
+   <Row ss:Height="22"><Cell ss:MergeAcross="7" ss:StyleID="SubHeader"><Data ss:Type="String">Registre des Horaires</Data></Cell></Row>
    <Row ss:Height="18">
     <Cell ss:StyleID="BoldText"><Data ss:Type="String">Période :</Data></Cell>
     <Cell ss:MergeAcross="5"><Data ss:Type="String">{escape_xml(period_text)}</Data></Cell>
@@ -356,8 +318,9 @@ async def export_daily_logs_excel(
     <Cell ss:StyleID="Header"><Data ss:Type="String">Café</Data></Cell>
     <Cell ss:StyleID="Header"><Data ss:Type="String">Ouverture Réelle</Data></Cell>
     <Cell ss:StyleID="Header"><Data ss:Type="String">Fermeture Réelle</Data></Cell>
-    <Cell ss:StyleID="Header"><Data ss:Type="String">Score (%)</Data></Cell>
-    <Cell ss:StyleID="Header"><Data ss:Type="String">Statut</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Conformité</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Retard ouv. (min)</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Ferm. anticipée (min)</Data></Cell>
     <Cell ss:StyleID="Header"><Data ss:Type="String">Saisi par</Data></Cell>
    </Row>{"".join(rows_xml)}
   </Table>
@@ -421,19 +384,7 @@ async def create_daily_log(
     await db.commit()
     await db.refresh(log)
 
-    score = _compute_score(log, coffee)
-    status_label = _compute_status(score, thr)
-
-    return {
-        "id":            log.id,
-        "date":          log.date,
-        "opening_time":  log.opening_time,
-        "closing_time":  log.closing_time,
-        "coffee_id":     log.coffee_id,
-        "controller_id": log.controller_id,
-        "score":         score,
-        "status":        status_label,
-    }
+    return _enrich_log(log, coffee, thr)
 
 
 @router.delete("/{id}")

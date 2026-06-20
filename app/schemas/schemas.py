@@ -293,12 +293,12 @@ class DailyTimeRecordResponse(DailyTimeRecordBase):
 
 # --- Schedule Threshold Schemas ---
 class ScheduleThresholdBase(BaseModel):
-    green_min:  float = Field(100.0, ge=1.0, le=100.0)
-    orange_min: float = Field(90.0,  ge=1.0, le=100.0)
+    green_min:  float = Field(0.0, ge=0.0, le=1440.0, description="Max lost minutes for green status")
+    orange_min: float = Field(60.0, ge=0.0, le=1440.0, description="Max lost minutes for orange status")
 
 class ScheduleThresholdUpdate(BaseModel):
-    green_min:  Optional[float] = Field(None, ge=1.0, le=100.0)
-    orange_min: Optional[float] = Field(None, ge=1.0, le=100.0)
+    green_min:  Optional[float] = Field(None, ge=0.0, le=1440.0)
+    orange_min: Optional[float] = Field(None, ge=0.0, le=1440.0)
 
 class ScheduleThresholdResponse(ScheduleThresholdBase):
     id: int
@@ -312,8 +312,15 @@ class DailyTimeRecordEnriched(DailyTimeRecordBase):
     id: int
     coffee_id: int
     controller_id: int
-    score: float                  # computed by backend
+    score: float                  # compliant minutes within expected window
+    config_range: float = 0.0     # expected opening window in minutes
+    late_minutes: float = 0.0
+    early_minutes: float = 0.0
+    lost_minutes: float = 0.0     # late + early minutes
+    is_late_opening: bool = False
+    is_early_closing: bool = False
     status: str                   # "green" | "orange" | "red"
+    conformity_label: str = "Non-conforme"
 
     class Config:
         from_attributes = True
@@ -327,8 +334,9 @@ class DailyLogListResponse(BaseModel):
     size: int
     pages: int
     # Pre-computed KPI stats (over ALL filtered records, not just current page)
-    average_score: float = 0.0
+    average_score: float = 0.0          # average compliant minutes
+    average_lost_minutes: float = 0.0   # average lost minutes (late + early)
     late_openings: int = 0
     early_closures: int = 0
-    monthly_average: float = 0.0
-    weekly_average: float = 0.0
+    monthly_average: float = 0.0        # average lost minutes for current month
+    weekly_average: float = 0.0         # average lost minutes for current week

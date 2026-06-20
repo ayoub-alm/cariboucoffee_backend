@@ -211,22 +211,23 @@ class DailyTimeRecord(Base):
 
 class ScheduleThreshold(Base):
     """Configurable thresholds for schedule (horaire) score color-coding.
-    green_min  -> score >= green_min  => vert (conforme)
-    orange_min -> score >= orange_min => orange (partiel)
-    below orange_min                  => rouge (non-conforme)
+    Thresholds are expressed as maximum tolerable lost minutes (late + early).
+    green_min  -> lost_minutes <= green_min  => vert (conforme)
+    orange_min -> lost_minutes <= orange_min => orange (partiel)
+    above orange_min                         => rouge (non-conforme)
     """
     __tablename__ = "schedule_thresholds"
 
     id = Column(Integer, primary_key=True, index=True)
-    green_min  = Column(Float, default=100.0)   # ≥ green_min  → green
-    orange_min = Column(Float, default=90.0)    # ≥ orange_min → orange
+    green_min  = Column(Float, default=0.0)    # max lost minutes for green
+    orange_min = Column(Float, default=60.0)   # max lost minutes for orange
     updated_at = Column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())
 
     @validates("green_min", "orange_min")
     def validate_min_value(self, key, value):
-        if value is None or value < 1.0:
-            return 1.0
-        if value > 100.0:
-            return 100.0
+        if value is None or value < 0.0:
+            return 0.0
+        if value > 1440.0:
+            return 1440.0
         return value
 

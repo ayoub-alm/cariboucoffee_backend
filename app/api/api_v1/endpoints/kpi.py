@@ -285,32 +285,22 @@ async def export_monthly_excel(
 
     thr_result = await db.execute(select(ScheduleThreshold).limit(1))
     thr = thr_result.scalars().first()
-    green_min = thr.green_min if thr and thr.green_min is not None else 100.0
-    orange_min = thr.orange_min if thr and thr.orange_min is not None else 90.0
+    green_max = thr.green_min if thr and thr.green_min is not None else 0.0
+    orange_max = thr.orange_min if thr and thr.orange_min is not None else 60.0
 
-    # Helper function to compute timing record score
-    def _time_to_minutes(t: str) -> int:
-        try:
-            h, m = map(int, t.split(":"))
-            return h * 60 + m
-        except:
-            return 0
+    from app.services.schedule_scoring import compute_schedule_score
 
     def _compute_log_score(log, coffee) -> float:
-        if not coffee or not coffee.opening_time or not coffee.closing_time:
+        return compute_schedule_score(log, coffee, thr).score
+
+    def _compute_log_lost(log, coffee) -> float:
+        return compute_schedule_score(log, coffee, thr).lost_minutes
+
+    def _schedule_compliance_pct(log, coffee) -> float:
+        result = compute_schedule_score(log, coffee, thr)
+        if result.config_range <= 0:
             return 100.0
-        if not log.opening_time or not log.closing_time:
-            return 0.0
-        config_start = _time_to_minutes(coffee.opening_time)
-        config_end   = _time_to_minutes(coffee.closing_time)
-        config_range = config_end - config_start
-        if config_range <= 0:
-            return 100.0
-        real_start = _time_to_minutes(log.opening_time)
-        real_end   = _time_to_minutes(log.closing_time)
-        real_range = real_end - real_start
-        percentage = (real_range / config_range) * 100.0
-        return min(round(percentage, 2), 100.0)
+        return round((result.score / result.config_range) * 100.0, 2)
 
     # Helper functions for conditional formatting StyleIDs
     def get_audit_score_style(score: float, conforme_min: float) -> str:
@@ -320,12 +310,12 @@ async def export_monthly_excel(
             return "GoodStyle"
         return "BadStyle"
 
-    def get_schedule_score_style(score: float, green_min: float, orange_min: float) -> str:
-        if score is None:
+    def get_schedule_score_style(lost_minutes: float, green_max: float, orange_max: float) -> str:
+        if lost_minutes is None:
             return "NumberStyle"
-        if score >= green_min:
+        if lost_minutes <= green_max:
             return "GoodStyle"
-        if score >= orange_min:
+        if lost_minutes <= orange_max:
             return "WarningStyle"
         return "BadStyle"
 
@@ -369,19 +359,21 @@ async def export_monthly_excel(
         shop_logs = [l for l in daily_logs if l.coffee_id == coffee.id]
         log_count = len(shop_logs)
         log_avg = sum(_compute_log_score(l, coffee) for l in shop_logs) / log_count if log_count > 0 else None
+        log_lost_avg = sum(_compute_log_lost(l, coffee) for l in shop_logs) / log_count if log_count > 0 else None
+        log_pct_avg = sum(_schedule_compliance_pct(l, coffee) for l in shop_logs) / log_count if log_count > 0 else None
 
-        # Combined score
+        # Combined score (audits % + normalized schedule compliance %)
         combined_score = 0.0
-        if audit_avg is not None and log_avg is not None:
-            combined_score = 0.5 * audit_avg + 0.5 * log_avg
+        if audit_avg is not None and log_pct_avg is not None:
+            combined_score = 0.5 * audit_avg + 0.5 * log_pct_avg
         elif audit_avg is not None:
             combined_score = audit_avg
-        elif log_avg is not None:
-            combined_score = log_avg
+        elif log_pct_avg is not None:
+            combined_score = log_pct_avg
 
         # Determine styles based on scores
         audit_style = get_audit_score_style(audit_avg, conforme_min) if audit_avg is not None else "NumberStyle"
-        log_style = get_schedule_score_style(log_avg, green_min, orange_min) if log_avg is not None else "NumberStyle"
+        log_style = get_schedule_score_style(log_lost_avg, green_max, orange_max) if log_lost_avg is not None else "NumberStyle"
         combined_style = get_combined_score_style(combined_score, conforme_min)
 
         # Add to global KPIs Sheet 1 list
@@ -411,7 +403,8 @@ async def export_monthly_excel(
    <Row><Cell><Data ss:Type="String">Score Moyen Audits (%)</Data></Cell><Cell ss:StyleID="{audit_style}"><Data ss:Type="Number">{round(audit_avg) if audit_avg is not None else 0}</Data></Cell></Row>
    <Row><Cell><Data ss:Type="String">Taux de Conformité Audits (%)</Data></Cell><Cell ss:StyleID="{get_combined_score_style(compliance_rate, conforme_min)}"><Data ss:Type="Number">{round(compliance_rate)}</Data></Cell></Row>
    <Row><Cell><Data ss:Type="String">Nombre d'Audits</Data></Cell><Cell ss:StyleID="NumberStyle"><Data ss:Type="Number">{audit_count}</Data></Cell></Row>
-   <Row><Cell><Data ss:Type="String">Score Moyen Horaires (%)</Data></Cell><Cell ss:StyleID="{log_style}"><Data ss:Type="Number">{round(log_avg) if log_avg is not None else 0}</Data></Cell></Row>
+   <Row><Cell><Data ss:Type="String">Score Moyen Horaires (min)</Data></Cell><Cell ss:StyleID="{log_style}"><Data ss:Type="Number">{round(log_avg) if log_avg is not None else 0}</Data></Cell></Row>
+   <Row><Cell><Data ss:Type="String">Perte Moyenne Horaires (min)</Data></Cell><Cell ss:StyleID="{log_style}"><Data ss:Type="Number">{round(log_lost_avg) if log_lost_avg is not None else 0}</Data></Cell></Row>
    <Row><Cell><Data ss:Type="String">Total Relevés Horaires</Data></Cell><Cell ss:StyleID="NumberStyle"><Data ss:Type="Number">{log_count}</Data></Cell></Row>
    <Row><Cell><Data ss:Type="String">Score de Conformité Globale (%)</Data></Cell><Cell ss:StyleID="{combined_style}"><Data ss:Type="Number">{round(combined_score)}</Data></Cell></Row>
    <Row ss:Height="15"></Row> <!-- Spacer -->
@@ -454,8 +447,9 @@ async def export_monthly_excel(
     <Cell ss:StyleID="Header"><Data ss:Type="String">Ouverture Réelle</Data></Cell>
     <Cell ss:StyleID="Header"><Data ss:Type="String">Fermeture Prévue</Data></Cell>
     <Cell ss:StyleID="Header"><Data ss:Type="String">Fermeture Réelle</Data></Cell>
-    <Cell ss:StyleID="Header"><Data ss:Type="String">Score (%)</Data></Cell>
-    <Cell ss:StyleID="Header"><Data ss:Type="String">Statut</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Conformité</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Retard ouv. (min)</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Ferm. anticipée (min)</Data></Cell>
    </Row>"""
 
         if not shop_logs:
@@ -463,9 +457,9 @@ async def export_monthly_excel(
    <Row><Cell ss:MergeAcross="6"><Data ss:Type="String">Aucun relevé d'horaires enregistré</Data></Cell></Row>"""
         else:
             for log in shop_logs:
-                score = _compute_log_score(log, coffee)
-                status = 'Conforme' if score >= green_min else ('Partiel' if score >= orange_min else 'Non Conforme')
-                this_log_style = get_schedule_score_style(score, green_min, orange_min)
+                result = compute_schedule_score(log, coffee, thr)
+                status = result.conformity_label
+                this_log_style = get_schedule_score_style(max(result.late_minutes, result.early_minutes), green_max, orange_max)
                 sheet_xml += f"""
    <Row>
     <Cell><Data ss:Type="String">{log.date.strftime("%d/%m/%Y") if log.date else ""}</Data></Cell>
@@ -473,8 +467,9 @@ async def export_monthly_excel(
     <Cell><Data ss:Type="String">{escape_xml(log.opening_time or '--:--')}</Data></Cell>
     <Cell><Data ss:Type="String">{escape_xml(coffee.closing_time or '--:--')}</Data></Cell>
     <Cell><Data ss:Type="String">{escape_xml(log.closing_time or '--:--')}</Data></Cell>
-    <Cell ss:StyleID="{this_log_style}"><Data ss:Type="Number">{round(score)}</Data></Cell>
-    <Cell><Data ss:Type="String">{status}</Data></Cell>
+    <Cell ss:StyleID="{this_log_style}"><Data ss:Type="String">{status}</Data></Cell>
+    <Cell ss:StyleID="NumberStyle"><Data ss:Type="Number">{round(result.late_minutes)}</Data></Cell>
+    <Cell ss:StyleID="NumberStyle"><Data ss:Type="Number">{round(result.early_minutes)}</Data></Cell>
    </Row>"""
 
         sheet_xml += """

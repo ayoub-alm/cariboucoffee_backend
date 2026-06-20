@@ -73,7 +73,7 @@ async def get_schedule_thresholds(
     thr = result.scalars().first()
 
     if not thr:
-        thr = ScheduleThreshold(green_min=100.0, orange_min=90.0)
+        thr = ScheduleThreshold(green_min=0.0, orange_min=60.0)
         db.add(thr)
         await db.commit()
         await db.refresh(thr)
@@ -105,6 +105,12 @@ async def update_schedule_thresholds(
     update_data = threshold_in.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(thr, field, value)
+
+    if thr.orange_min is not None and thr.green_min is not None and thr.orange_min < thr.green_min:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Le seuil Orange doit être supérieur ou égal au seuil Vert.",
+        )
 
     db.add(thr)
     await db.commit()
