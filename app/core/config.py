@@ -42,7 +42,7 @@ class Settings(BaseSettings):
     EMAILS_FROM_NAME: str = "Caribou Coffee Report"
 
     # ── Frontend ──────────────────────────────────────────────────────────────
-    FRONTEND_URL: str = "https://auditcarboucoffe.com"
+    FRONTEND_URL: str = "https://auditcariboucoffee.com"
 
     class Config:
         env_file = ".env"
