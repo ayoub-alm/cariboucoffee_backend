@@ -33,6 +33,23 @@ class Coffee(Base):
     audits = relationship("Audit", back_populates="coffee")
     viewers = relationship("User", back_populates="assigned_coffee", foreign_keys="User.coffee_id")
     managers = relationship("User", secondary=manager_coffees, back_populates="managed_coffees")
+    schedules = relationship("CoffeeSchedule", back_populates="coffee", cascade="all, delete-orphan")
+
+
+class CoffeeSchedule(Base):
+    """Per-day schedule for a coffee shop.
+    day_of_week: 0=Dimanche, 1=Lundi, 2=Mardi, 3=Mercredi, 4=Jeudi, 5=Vendredi, 6=Samedi
+    """
+    __tablename__ = "coffee_schedules"
+
+    id = Column(Integer, primary_key=True, index=True)
+    coffee_id = Column(Integer, ForeignKey("coffees.id"), nullable=False)
+    day_of_week = Column(Integer, nullable=False)  # 0=Dimanche .. 6=Samedi
+    is_closed = Column(Boolean, default=False)
+    opening_time = Column(String, nullable=True)   # "HH:MM"
+    closing_time = Column(String, nullable=True)   # "HH:MM"
+
+    coffee = relationship("Coffee", back_populates="schedules")
 
 class User(Base):
     __tablename__ = "users"
@@ -201,12 +218,19 @@ class DailyTimeRecord(Base):
     date = Column(Date, nullable=False)
     opening_time = Column(String, nullable=True)
     closing_time = Column(String, nullable=True)
+
+    # ── Snapshot of the expected schedule at the time of record creation ──
+    # These values are frozen so that future schedule changes do NOT affect
+    # historical scores. NULL means "legacy record – fall back to live schedule".
+    expected_opening = Column(String, nullable=True)
+    expected_closing = Column(String, nullable=True)
     
     coffee_id = Column(Integer, ForeignKey("coffees.id"), nullable=False)
     controller_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     
     coffee = relationship("Coffee")
     controller = relationship("User")
+
 
 
 class ScheduleThreshold(Base):

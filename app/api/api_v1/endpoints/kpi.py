@@ -2,12 +2,14 @@ from typing import Any
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from sqlalchemy.orm import selectinload
 from sqlalchemy import func
 from datetime import datetime
 
 from app.api import deps
 from app.models.models import Audit, Coffee, User, UserRole, AuditAnswer, AuditQuestion, AuditCategory, DailyTimeRecord
 from app.schemas import schemas
+from app.services.schedule_scoring import compute_schedule_score
 
 router = APIRouter()
 
@@ -160,22 +162,32 @@ async def read_kpi(
         scores_per_category[cat_name] = round((total_val / total_weight) * 100, 2) if total_weight > 0 else 0.0
 
 
-    # 10. Timing scores per coffee for this month
-    timing_query = select(DailyTimeRecord, Coffee).join(Coffee, DailyTimeRecord.coffee_id == Coffee.id).where(DailyTimeRecord.date >= first_day_of_month.date())
+    # 10. Timing scores per coffee for this month (using per-day schedules)
+    from app.models.models import ScheduleThreshold as STModel
+    thr_result = await db.execute(select(STModel).limit(1))
+    schedule_thr = thr_result.scalars().first()
+
+    timing_query = (
+        select(DailyTimeRecord, Coffee)
+        .join(Coffee, DailyTimeRecord.coffee_id == Coffee.id)
+        .options(selectinload(Coffee.schedules))
+        .where(DailyTimeRecord.date >= first_day_of_month.date())
+    )
     timing_result = await db.execute(timing_query)
     
     coffee_timing_stats = {}
     for record, coffee in timing_result.all():
         if coffee.name not in coffee_timing_stats:
             coffee_timing_stats[coffee.name] = {"total_score": 0, "count": 0}
-            
-        daily_score = 0
-        if record.opening_time and coffee.opening_time and record.opening_time <= coffee.opening_time:
-            daily_score += 50
-        if record.closing_time and coffee.closing_time and record.closing_time >= coffee.closing_time:
-            daily_score += 50
-            
-        coffee_timing_stats[coffee.name]["total_score"] += daily_score
+
+        score_result = compute_schedule_score(record, coffee, schedule_thr)
+        # Convert to 0-100%: if config_range > 0, score/config_range * 100
+        if score_result.config_range > 0:
+            daily_pct = round((score_result.score / score_result.config_range) * 100, 2)
+        else:
+            daily_pct = 100.0  # no config = fully compliant
+
+        coffee_timing_stats[coffee.name]["total_score"] += daily_pct
         coffee_timing_stats[coffee.name]["count"] += 1
 
     timing_scores = {}
@@ -213,8 +225,8 @@ async def export_monthly_excel(
     if current_user.role not in (UserRole.ADMIN, UserRole.BOSS, UserRole.MANAGER):
         raise HTTPException(status_code=403, detail="Accès non autorisé.")
 
-    # 1. Fetch coffees
-    coffee_stmt = select(Coffee)
+    # 1. Fetch coffees (with schedules)
+    coffee_stmt = select(Coffee).options(selectinload(Coffee.schedules))
     if current_user.role == UserRole.MANAGER:
         managed_ids = [c.id for c in current_user.managed_coffees] if current_user.managed_coffees else []
         if not managed_ids:
@@ -257,7 +269,7 @@ async def export_monthly_excel(
 
     # 3. Fetch Daily Time Records
     log_stmt = select(DailyTimeRecord).options(
-        selectinload(DailyTimeRecord.coffee),
+        selectinload(DailyTimeRecord.coffee).selectinload(Coffee.schedules),
         selectinload(DailyTimeRecord.controller)
     )
     if current_user.role == UserRole.MANAGER:
@@ -288,7 +300,7 @@ async def export_monthly_excel(
     green_max = thr.green_min if thr and thr.green_min is not None else 0.0
     orange_max = thr.orange_min if thr and thr.orange_min is not None else 60.0
 
-    from app.services.schedule_scoring import compute_schedule_score
+
 
     def _compute_log_score(log, coffee) -> float:
         return compute_schedule_score(log, coffee, thr).score
@@ -440,7 +452,7 @@ async def export_monthly_excel(
    <Row ss:Height="15"></Row> <!-- Spacer -->
 
    <!-- Section 3: Daily Logs Register -->
-   <Row ss:Height="22"><Cell ss:MergeAcross="6" ss:StyleID="SubHeader"><Data ss:Type="String">Registre des Horaires (Horaires Préconfigurés : {escape_xml(coffee.opening_time or '--:--')} - {escape_xml(coffee.closing_time or '--:--')})</Data></Cell></Row>
+   <Row ss:Height="22"><Cell ss:MergeAcross="7" ss:StyleID="SubHeader"><Data ss:Type="String">Registre des Horaires (Horaires par jour)</Data></Cell></Row>
    <Row ss:Height="20">
     <Cell ss:StyleID="Header"><Data ss:Type="String">Date</Data></Cell>
     <Cell ss:StyleID="Header"><Data ss:Type="String">Ouverture Prévue</Data></Cell>
@@ -454,7 +466,7 @@ async def export_monthly_excel(
 
         if not shop_logs:
             sheet_xml += """
-   <Row><Cell ss:MergeAcross="6"><Data ss:Type="String">Aucun relevé d'horaires enregistré</Data></Cell></Row>"""
+   <Row><Cell ss:MergeAcross="7"><Data ss:Type="String">Aucun relevé d'horaires enregistré</Data></Cell></Row>"""
         else:
             for log in shop_logs:
                 result = compute_schedule_score(log, coffee, thr)
@@ -463,9 +475,9 @@ async def export_monthly_excel(
                 sheet_xml += f"""
    <Row>
     <Cell><Data ss:Type="String">{log.date.strftime("%d/%m/%Y") if log.date else ""}</Data></Cell>
-    <Cell><Data ss:Type="String">{escape_xml(coffee.opening_time or '--:--')}</Data></Cell>
+    <Cell><Data ss:Type="String">{escape_xml(result.expected_opening)}</Data></Cell>
     <Cell><Data ss:Type="String">{escape_xml(log.opening_time or '--:--')}</Data></Cell>
-    <Cell><Data ss:Type="String">{escape_xml(coffee.closing_time or '--:--')}</Data></Cell>
+    <Cell><Data ss:Type="String">{escape_xml(result.expected_closing)}</Data></Cell>
     <Cell><Data ss:Type="String">{escape_xml(log.closing_time or '--:--')}</Data></Cell>
     <Cell ss:StyleID="{this_log_style}"><Data ss:Type="String">{status}</Data></Cell>
     <Cell ss:StyleID="NumberStyle"><Data ss:Type="Number">{round(result.late_minutes)}</Data></Cell>

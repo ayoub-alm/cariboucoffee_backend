@@ -62,6 +62,23 @@ class PasswordReset(BaseModel):
     new_password: str = Field(..., min_length=6)
 
 
+# --- Coffee Schedule Schemas ---
+class CoffeeScheduleBase(BaseModel):
+    day_of_week: int  # 0=Dimanche, 1=Lundi, ..., 6=Samedi
+    is_closed: bool = False
+    opening_time: Optional[str] = None
+    closing_time: Optional[str] = None
+
+class CoffeeScheduleCreate(CoffeeScheduleBase):
+    pass
+
+class CoffeeScheduleResponse(CoffeeScheduleBase):
+    id: int
+    coffee_id: int
+
+    class Config:
+        from_attributes = True
+
 # --- Coffee Schemas ---
 class CoffeeBase(BaseModel):
     name: str
@@ -69,22 +86,25 @@ class CoffeeBase(BaseModel):
     opening_time: Optional[str] = None
     closing_time: Optional[str] = None
 
-class CoffeeCreate(CoffeeBase):
+class CoffeeCreate(BaseModel):
     ref: Optional[str] = None   # If not provided, auto-generated as CAF-XXX
+    name: str
+    location: str
     active: bool = True
+    schedules: Optional[List[CoffeeScheduleCreate]] = None
 
 class CoffeeUpdate(BaseModel):
     ref: Optional[str] = None
     name: Optional[str] = None
     location: Optional[str] = None
     active: Optional[bool] = None
-    opening_time: Optional[str] = None
-    closing_time: Optional[str] = None
+    schedules: Optional[List[CoffeeScheduleCreate]] = None
 
 class CoffeeResponse(CoffeeBase):
     id: int
     ref: Optional[str] = None
     active: bool
+    schedules: List[CoffeeScheduleResponse] = []
 
     class Config:
         from_attributes = True
@@ -321,6 +341,8 @@ class DailyTimeRecordEnriched(DailyTimeRecordBase):
     is_early_closing: bool = False
     status: str                   # "green" | "orange" | "red"
     conformity_label: str = "Non-conforme"
+    expected_opening: str = "--:--"
+    expected_closing: str = "--:--"
 
     class Config:
         from_attributes = True

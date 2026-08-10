@@ -2,9 +2,10 @@ from typing import Any, List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from sqlalchemy.orm import selectinload
 
 from app.api import deps
-from app.models.models import Coffee, UserRole, User
+from app.models.models import Coffee, CoffeeSchedule, UserRole, User
 from app.schemas import schemas
 
 router = APIRouter()
@@ -17,10 +18,10 @@ async def read_coffees(
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
     """
-    Retrieve coffees.
+    Retrieve coffees with their per-day schedules.
     """
 
-    query = select(Coffee).order_by(Coffee.id).offset(skip).limit(limit)
+    query = select(Coffee).options(selectinload(Coffee.schedules)).order_by(Coffee.id).offset(skip).limit(limit)
     result = await db.execute(query)
     coffees = result.scalars().all()
     
@@ -52,7 +53,7 @@ async def create_coffee(
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
     """
-    Create new coffee.
+    Create new coffee with optional per-day schedules.
     """
     has_create_rights = current_user.rights and current_user.rights.coffees_create
     if current_user.role != UserRole.ADMIN and not has_create_rights:
@@ -73,9 +74,25 @@ async def create_coffee(
         active=coffee_in.active
     )
     db.add(coffee)
+    await db.flush()  # get coffee.id
+
+    # Create schedules if provided
+    if coffee_in.schedules:
+        for sched in coffee_in.schedules:
+            db.add(CoffeeSchedule(
+                coffee_id=coffee.id,
+                day_of_week=sched.day_of_week,
+                is_closed=sched.is_closed,
+                opening_time=sched.opening_time,
+                closing_time=sched.closing_time,
+            ))
+
     await db.commit()
-    await db.refresh(coffee)
-    return coffee
+    # Reload with schedules
+    result = await db.execute(
+        select(Coffee).options(selectinload(Coffee.schedules)).where(Coffee.id == coffee.id)
+    )
+    return result.scalars().first()
 
 @router.put("/{coffee_id}", response_model=schemas.CoffeeResponse)
 async def update_coffee(
@@ -86,26 +103,44 @@ async def update_coffee(
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
     """
-    Update a coffee.
+    Update a coffee and its per-day schedules.
     """
     has_update_rights = current_user.rights and current_user.rights.coffees_update
     if current_user.role != UserRole.ADMIN and not has_update_rights:
          raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
 
-    query = select(Coffee).where(Coffee.id == coffee_id)
+    query = select(Coffee).options(selectinload(Coffee.schedules)).where(Coffee.id == coffee_id)
     result = await db.execute(query)
     coffee = result.scalars().first()
     if not coffee:
         raise HTTPException(status_code=404, detail="Coffee not found")
         
-    update_data = coffee_in.model_dump(exclude_unset=True) 
+    update_data = coffee_in.model_dump(exclude_unset=True, exclude={"schedules"})
     for field, value in update_data.items():
         setattr(coffee, field, value)
+
+    # Update schedules if provided
+    if coffee_in.schedules is not None:
+        # Remove existing schedules
+        for existing in coffee.schedules:
+            await db.delete(existing)
+        # Add new ones
+        for sched in coffee_in.schedules:
+            db.add(CoffeeSchedule(
+                coffee_id=coffee.id,
+                day_of_week=sched.day_of_week,
+                is_closed=sched.is_closed,
+                opening_time=sched.opening_time,
+                closing_time=sched.closing_time,
+            ))
         
     db.add(coffee)
     await db.commit()
-    await db.refresh(coffee)
-    return coffee
+    # Reload with schedules
+    result = await db.execute(
+        select(Coffee).options(selectinload(Coffee.schedules)).where(Coffee.id == coffee.id)
+    )
+    return result.scalars().first()
 
 @router.delete("/{coffee_id}")
 async def delete_coffee(
@@ -130,3 +165,64 @@ async def delete_coffee(
     await db.delete(coffee)
     await db.commit()
     return {"message": "Coffee deleted successfully", "id": coffee_id}
+
+
+# ── Per-day schedule endpoints ──────────────────────────────────────────────
+
+@router.get("/{coffee_id}/schedules", response_model=List[schemas.CoffeeScheduleResponse])
+async def get_coffee_schedules(
+    coffee_id: int,
+    db: AsyncSession = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+) -> Any:
+    """Get the 7-day schedule for a specific coffee."""
+    result = await db.execute(
+        select(CoffeeSchedule)
+        .where(CoffeeSchedule.coffee_id == coffee_id)
+        .order_by(CoffeeSchedule.day_of_week)
+    )
+    return result.scalars().all()
+
+
+@router.put("/{coffee_id}/schedules", response_model=List[schemas.CoffeeScheduleResponse])
+async def update_coffee_schedules(
+    coffee_id: int,
+    schedules_in: List[schemas.CoffeeScheduleCreate],
+    db: AsyncSession = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+) -> Any:
+    """Replace the full 7-day schedule for a coffee."""
+    has_update_rights = current_user.rights and current_user.rights.coffees_update
+    if current_user.role != UserRole.ADMIN and not has_update_rights:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
+
+    # Verify coffee exists
+    coffee_result = await db.execute(select(Coffee).where(Coffee.id == coffee_id))
+    if not coffee_result.scalars().first():
+        raise HTTPException(status_code=404, detail="Coffee not found")
+
+    # Delete existing schedules
+    existing = await db.execute(
+        select(CoffeeSchedule).where(CoffeeSchedule.coffee_id == coffee_id)
+    )
+    for s in existing.scalars().all():
+        await db.delete(s)
+
+    # Create new schedules
+    for sched in schedules_in:
+        db.add(CoffeeSchedule(
+            coffee_id=coffee_id,
+            day_of_week=sched.day_of_week,
+            is_closed=sched.is_closed,
+            opening_time=sched.opening_time,
+            closing_time=sched.closing_time,
+        ))
+
+    await db.commit()
+
+    result = await db.execute(
+        select(CoffeeSchedule)
+        .where(CoffeeSchedule.coffee_id == coffee_id)
+        .order_by(CoffeeSchedule.day_of_week)
+    )
+    return result.scalars().all()

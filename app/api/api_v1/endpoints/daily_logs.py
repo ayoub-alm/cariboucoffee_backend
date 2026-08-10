@@ -1,15 +1,42 @@
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Tuple
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from sqlalchemy.orm import selectinload
 import datetime
 
 from app.api import deps
-from app.models.models import DailyTimeRecord, ScheduleThreshold, UserRole, User, Coffee
+from app.models.models import DailyTimeRecord, ScheduleThreshold, UserRole, User, Coffee, CoffeeSchedule
 from app.schemas import schemas
-from app.services.schedule_scoring import compute_schedule_score, score_result_to_dict
+from app.services.schedule_scoring import (
+    compute_schedule_score, score_result_to_dict,
+    get_schedule_for_day, _date_to_day_of_week
+)
 
 router = APIRouter()
+
+
+def _resolve_expected_times(coffee: Optional[Coffee], log_date) -> Tuple[Optional[str], Optional[str]]:
+    """Resolve the expected opening/closing for a specific date from a coffee's schedules.
+
+    Returns a tuple (expected_opening, expected_closing).
+    Special value ("Fermé", "Fermé") signals a closed day.
+    Returns (None, None) when no schedule configuration is available.
+    """
+    if not coffee:
+        return None, None
+
+    day_schedule = get_schedule_for_day(
+        getattr(coffee, "schedules", None), log_date
+    )
+
+    if day_schedule:
+        if day_schedule.is_closed:
+            return "Fermé", "Fermé"
+        return day_schedule.opening_time, day_schedule.closing_time
+
+    # Fall back to single opening/closing time on the Coffee record
+    return coffee.opening_time, coffee.closing_time
 
 
 def _enrich_log(log: DailyTimeRecord, coffee: Optional[Coffee], thr: Optional[ScheduleThreshold]) -> dict:
@@ -45,8 +72,8 @@ async def read_daily_logs(
     thr_result = await db.execute(select(ScheduleThreshold).limit(1))
     thr = thr_result.scalars().first()
 
-    # Load all coffees into a dict for fast lookup
-    coffees_result = await db.execute(select(Coffee))
+    # Load all coffees with their per-day schedules into a dict for fast lookup
+    coffees_result = await db.execute(select(Coffee).options(selectinload(Coffee.schedules)))
     coffees = {c.id: c for c in coffees_result.scalars().all()}
 
     # Build base query with filters applied
@@ -105,11 +132,10 @@ async def read_daily_logs(
             week_lost_sum += worst_violation
             week_count += 1
 
-        if coffee:
-            if coffee.opening_time and log.opening_time and log.opening_time > coffee.opening_time:
-                late_openings += 1
-            if coffee.closing_time and log.closing_time and log.closing_time < coffee.closing_time:
-                early_closures += 1
+        if result.is_late_opening:
+            late_openings += 1
+        if result.is_early_closing:
+            early_closures += 1
 
     average_score       = round(total_score_sum / total, 2)       if total       > 0 else 0.0
     average_lost_minutes = round(total_lost_sum  / total, 2)       if total       > 0 else 0.0
@@ -151,7 +177,6 @@ async def export_daily_logs_excel(
 ) -> Any:
     """Export daily logs to Excel format."""
     from fastapi.responses import Response
-    from sqlalchemy.orm import selectinload
     
     if current_user.role not in [UserRole.ADMIN, UserRole.BOSS, UserRole.MANAGER, UserRole.CONTROLLER]:
         raise HTTPException(status_code=403, detail="Accès refusé")
@@ -159,12 +184,10 @@ async def export_daily_logs_excel(
     # 1. Load thresholds
     thr_result = await db.execute(select(ScheduleThreshold).limit(1))
     thr = thr_result.scalars().first()
-    green_max  = thr.green_min  if thr else 0.0
-    orange_max = thr.orange_min if thr else 60.0
 
     # 2. Build query
     query = select(DailyTimeRecord).options(
-        selectinload(DailyTimeRecord.coffee),
+        selectinload(DailyTimeRecord.coffee).selectinload(Coffee.schedules),
         selectinload(DailyTimeRecord.controller)
     )
     
@@ -220,11 +243,16 @@ async def export_daily_logs_excel(
         opening = log.opening_time or "--:--"
         closing = log.closing_time or "--:--"
 
+        expected_opening = result.expected_opening or "--:--"
+        expected_closing = result.expected_closing or "--:--"
+
         rows_xml.append(f"""
    <Row ss:Height="20">
     <Cell><Data ss:Type="String">{escape_xml(date_str)}</Data></Cell>
     <Cell><Data ss:Type="String">{escape_xml(coffee_name)}</Data></Cell>
+    <Cell><Data ss:Type="String">{escape_xml(expected_opening)}</Data></Cell>
     <Cell><Data ss:Type="String">{escape_xml(opening)}</Data></Cell>
+    <Cell><Data ss:Type="String">{escape_xml(expected_closing)}</Data></Cell>
     <Cell><Data ss:Type="String">{escape_xml(closing)}</Data></Cell>
     <Cell ss:StyleID="{score_style}"><Data ss:Type="String">{escape_xml(status_label)}</Data></Cell>
     <Cell ss:StyleID="NumberStyle"><Data ss:Type="Number">{round(result.late_minutes)}</Data></Cell>
@@ -299,24 +327,26 @@ async def export_daily_logs_excel(
  </Styles>
  <Worksheet ss:Name="Registre des Horaires">
   <Table>
-   <Row ss:Height="22"><Cell ss:MergeAcross="7" ss:StyleID="SubHeader"><Data ss:Type="String">Registre des Horaires</Data></Cell></Row>
+   <Row ss:Height="22"><Cell ss:MergeAcross="9" ss:StyleID="SubHeader"><Data ss:Type="String">Registre des Horaires</Data></Cell></Row>
    <Row ss:Height="18">
     <Cell ss:StyleID="BoldText"><Data ss:Type="String">Période :</Data></Cell>
-    <Cell ss:MergeAcross="5"><Data ss:Type="String">{escape_xml(period_text)}</Data></Cell>
+    <Cell ss:MergeAcross="7"><Data ss:Type="String">{escape_xml(period_text)}</Data></Cell>
    </Row>
    <Row ss:Height="18">
     <Cell ss:StyleID="BoldText"><Data ss:Type="String">Date d'export :</Data></Cell>
-    <Cell ss:MergeAcross="5"><Data ss:Type="String">{escape_xml(export_date_text)}</Data></Cell>
+    <Cell ss:MergeAcross="7"><Data ss:Type="String">{escape_xml(export_date_text)}</Data></Cell>
    </Row>
    <Row ss:Height="18">
     <Cell ss:StyleID="BoldText"><Data ss:Type="String">Généré par :</Data></Cell>
-    <Cell ss:MergeAcross="5"><Data ss:Type="String">{escape_xml(generated_by_text)}</Data></Cell>
+    <Cell ss:MergeAcross="7"><Data ss:Type="String">{escape_xml(generated_by_text)}</Data></Cell>
    </Row>
    <Row ss:Height="15"></Row> <!-- Spacer -->
    <Row ss:Height="20">
     <Cell ss:StyleID="Header"><Data ss:Type="String">Date</Data></Cell>
     <Cell ss:StyleID="Header"><Data ss:Type="String">Café</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Ouverture Prévue</Data></Cell>
     <Cell ss:StyleID="Header"><Data ss:Type="String">Ouverture Réelle</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Fermeture Prévue</Data></Cell>
     <Cell ss:StyleID="Header"><Data ss:Type="String">Fermeture Réelle</Data></Cell>
     <Cell ss:StyleID="Header"><Data ss:Type="String">Conformité</Data></Cell>
     <Cell ss:StyleID="Header"><Data ss:Type="String">Retard ouv. (min)</Data></Cell>
@@ -352,9 +382,14 @@ async def create_daily_log(
     thr_result = await db.execute(select(ScheduleThreshold).limit(1))
     thr = thr_result.scalars().first()
 
-    # Load coffee
-    coffee_result = await db.execute(select(Coffee).where(Coffee.id == log_in.coffee_id))
+    # Load coffee with schedules
+    coffee_result = await db.execute(
+        select(Coffee).options(selectinload(Coffee.schedules)).where(Coffee.id == log_in.coffee_id)
+    )
     coffee = coffee_result.scalars().first()
+
+    # Resolve expected times snapshot once (used below for both new and updated records)
+    snap_opening, snap_closing = _resolve_expected_times(coffee, log_in.date)
 
     # Check existing log
     query = select(DailyTimeRecord).where(
@@ -370,6 +405,12 @@ async def create_daily_log(
         if log_in.closing_time is not None:
             existing_log.closing_time = log_in.closing_time
         existing_log.controller_id = current_user.id
+        # Preserve the original snapshot — only fill it in if it was never set
+        # (e.g. legacy record being updated for the first time after this migration)
+        if not existing_log.expected_opening and snap_opening:
+            existing_log.expected_opening = snap_opening
+        if not existing_log.expected_closing and snap_closing:
+            existing_log.expected_closing = snap_closing
         log = existing_log
     else:
         log = DailyTimeRecord(
@@ -377,7 +418,11 @@ async def create_daily_log(
             opening_time=log_in.opening_time,
             closing_time=log_in.closing_time,
             coffee_id=log_in.coffee_id,
-            controller_id=current_user.id
+            controller_id=current_user.id,
+            # Freeze the expected times at creation so future schedule changes
+            # do not retroactively affect this record's score.
+            expected_opening=snap_opening,
+            expected_closing=snap_closing,
         )
         db.add(log)
 

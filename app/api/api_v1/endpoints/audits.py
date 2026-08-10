@@ -195,7 +195,7 @@ async def read_audits(
         # ── 5. Paginated data query ────────────────────────────────────────
         data_q = _build(
             select(Audit).options(
-                selectinload(Audit.coffee),
+                selectinload(Audit.coffee).selectinload(Coffee.schedules),
                 selectinload(Audit.auditor),
                 selectinload(Audit.answers)
                     .selectinload(AuditAnswer.question)
@@ -327,7 +327,7 @@ async def create_audit(
         
         # Reload for response
         query = select(Audit).options(
-            selectinload(Audit.coffee),
+            selectinload(Audit.coffee).selectinload(Coffee.schedules),
             selectinload(Audit.auditor),
             selectinload(Audit.answers).selectinload(AuditAnswer.question).selectinload(AuditQuestion.category).selectinload(AuditCategory.questions)
         ).where(Audit.id == audit.id)
@@ -442,7 +442,7 @@ async def export_audits_excel(
         # ── 3. Query all filtered audits (non-paginated) ──────────────────
         data_q = _build(
             select(Audit).options(
-                selectinload(Audit.coffee),
+                selectinload(Audit.coffee).selectinload(Coffee.schedules),
                 selectinload(Audit.auditor)
             )
         )
@@ -621,7 +621,7 @@ async def read_audit(
     Get audit by ID.
     """
     query = select(Audit).options(
-        selectinload(Audit.coffee),
+        selectinload(Audit.coffee).selectinload(Coffee.schedules),
         selectinload(Audit.auditor),
         selectinload(Audit.answers).selectinload(AuditAnswer.question).selectinload(AuditQuestion.category).selectinload(AuditCategory.questions)
     ).where(Audit.id == audit_id)
@@ -661,7 +661,7 @@ async def download_audit_pdf(
     Get audit report as PDF.
     """
     query = select(Audit).options(
-        selectinload(Audit.coffee),
+        selectinload(Audit.coffee).selectinload(Coffee.schedules),
         selectinload(Audit.auditor),
         selectinload(Audit.answers).selectinload(AuditAnswer.question).selectinload(AuditQuestion.category).selectinload(AuditCategory.questions)
     ).where(Audit.id == audit_id)
@@ -712,7 +712,7 @@ async def update_audit(
     - Auditor can only update their own IN_PROGRESS audits.
     """
     query = select(Audit).options(
-        selectinload(Audit.coffee),
+        selectinload(Audit.coffee).selectinload(Coffee.schedules),
         selectinload(Audit.auditor),
         selectinload(Audit.answers).selectinload(AuditAnswer.question).selectinload(AuditQuestion.category).selectinload(AuditCategory.questions)
     ).where(Audit.id == id)
