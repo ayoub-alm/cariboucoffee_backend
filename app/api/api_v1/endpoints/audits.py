@@ -267,12 +267,15 @@ async def create_audit(
         total_weighted_score = 0
         total_max_weighted_score = 0
         
+        # Batch fetch all questions to avoid N+1 queries during autosave
+        question_ids = [ans.question_id for ans in audit_in.answers if ans.question_id]
+        questions_map = {}
+        if question_ids:
+            q_result = await db.execute(select(AuditQuestion).where(AuditQuestion.id.in_(question_ids)))
+            questions_map = {q.id: q for q in q_result.scalars().all()}
+        
         for answer in audit_in.answers:
-            # Fetch the question to get its weight
-            question_result = await db.execute(
-                select(AuditQuestion).where(AuditQuestion.id == answer.question_id)
-            )
-            question = question_result.scalars().first()
+            question = questions_map.get(answer.question_id)
             
             if not question:
                 print(f"Skipping invalid question_id: {answer.question_id}")
@@ -768,12 +771,15 @@ async def update_audit(
         total_weighted_score = 0
         total_max_weighted_score = 0
 
+        # Batch fetch all questions to avoid N+1 queries during autosave
+        question_ids = [ans.question_id for ans in audit_in.answers if ans.question_id]
+        questions_map = {}
+        if question_ids:
+            q_result = await db.execute(select(AuditQuestion).where(AuditQuestion.id.in_(question_ids)))
+            questions_map = {q.id: q for q in q_result.scalars().all()}
+
         for answer in audit_in.answers:
-            # Fetch the question to get its weight and scoring rules
-            question_result = await db.execute(
-                select(AuditQuestion).where(AuditQuestion.id == answer.question_id)
-            )
-            question = question_result.scalars().first()
+            question = questions_map.get(answer.question_id)
             
             if not question:
                 print(f"Skipping invalid question_id in update: {answer.question_id}")
