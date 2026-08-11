@@ -8,7 +8,7 @@ from sqlalchemy.orm import selectinload
 from fastapi.responses import Response
 
 from app.api import deps
-from app.models.models import Audit, AuditAnswer, AuditQuestion, AuditCategory, AuditStatus, User, UserRole, Coffee
+from app.models.models import Audit, AuditAnswer, AuditQuestion, AuditCategory, AuditStatus, User, UserRole, Coffee, CoffeeSchedule
 from app.schemas import schemas
 from app.utils.image_utils import save_base64_image
 from app.utils.pdf_generator import generate_audit_pdf
